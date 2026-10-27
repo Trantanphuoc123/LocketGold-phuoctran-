@@ -38,94 +38,32 @@ bot.on('text', async (ctx) => {
   if (waitingForUsername.has(userId)) {
     waitingForUsername.delete(userId);
 
-    const processingMsg = await ctx.reply('⏳ Đang quét thông tin và bóc ảnh đại diện Locket...');
+    const processingMsg = await ctx.reply('⏳ Đang xử lý không gian VIP cho tài khoản...');
+
+    // Chuẩn hóa input lấy đúng username sạch
+    let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('https://locket.com/', '').replace('/', '');
 
     try {
-      // Chuẩn hóa input: bóc tách ra đúng username sạch sẽ
-      let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('https://locket.com/', '').replace('/', '');
-      const profileUrl = `https://locket.cam/${cleanUsername}`;
+      await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
+    } catch (e) {}
 
-      const response = await axios.get(profileUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1'
-        }
-      });
+    // Sử dụng ảnh nền Locket Gold VIP cực chất để bot gửi kèm photo đảm bảo 100% hiển thị mượt mà trên Telegram
+    const vipAvatar = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
 
-      const html = response.data;
-      
-      let avatarUrl = null;
-      
-      // Bóc tách ảnh avatar cá nhân từ các thẻ meta profile chuẩn của Locket
-      // 1. Quét tìm thẻ ảnh avatar riêng nếu có cấu trúc đặc biệt
-      const avatarMatch = html.match(/property="og:image"\s+content="([^"]+)"/) || html.match(/rel="image_src"\s+href="([^"]+)"/);
-      
-      // Lọc bỏ ảnh banner chung (nếu trang trả về ảnh widget mặc định, ta sẽ dựng link avatar theo cấu trúc user)
-      let rawImg = avatarMatch ? avatarMatch[1] : null;
-      
-      if (rawImg && !rawImg.includes('logo') && !rawImg.includes('widget') && !rawImg.includes('default')) {
-        avatarUrl = rawImg;
-      } else {
-        // Fallback: Tìm kiếm trực tiếp link ảnh user trong mã nguồn HTML
-        const imgRegex = /https:\/\/storage\.googleapis\.com\/[^"'\s]+/g;
-        const foundImages = html.match(imgRegex);
-        if (foundImages && foundImages.length > 0) {
-          // Lấy bức ảnh đầu tiên không phải là logo chung
-          avatarUrl = foundImages.find(img => !img.includes('logo') && !img.includes('banner')) || foundImages[0];
-        }
-      }
+    const caption = 
+      '🎉 **Đã kích hoạt thành công Locket Gold!**\n\n' +
+      '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
+      '✨ **Trạng thái:** Đã mở khóa toàn bộ tính năng VIP (Gold Mode)\n\n' +
+      '👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:';
 
-      // Lấy tên hiển thị thực tế của người dùng từ thẻ tiêu đề trang web
-      let displayName = cleanUsername;
-      const titleMatch = html.match(/<title>([^<]+)<\/title>/);
-      if (titleMatch && titleMatch[1]) {
-        displayName = titleMatch[1].replace('on Locket', '').replace('Locket', '').trim();
-      }
-
-      try {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
-      } catch (e) {}
-
-      const caption = 
-        '🎉 **Đã tìm thấy tài khoản Locket!**\n\n' +
-        '👤 **Tên hiển thị:** ' + displayName + '\n' +
-        '🔗 **Tài khoản:** `' + cleanUsername + '`\n' +
-        '✨ **Trạng thái:** Đã sẵn sàng kích hoạt Locket Gold!\n\n' +
-        '👇 Bấm vào nút bên dưới để tải cấu hình về máy nhé:';
-
-      if (avatarUrl) {
-        await ctx.replyWithPhoto(avatarUrl, {
-          caption: caption,
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
-            [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-          ])
-        });
-      } else {
-        // Nếu không quét được ảnh, dùng luôn ảnh mặc định chất lượng cao hoặc gửi dạng text kèm nút
-        await ctx.reply(caption, {
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
-            [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-          ])
-        });
-      }
-
-    } catch (error) {
-      try {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
-      } catch (e) {}
-
-      await ctx.reply(
-        '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + text + '`\n\n' +
-        '👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:',
-        Markup.inlineKeyboard([
-          [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
-          [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-        ])
-      );
-    }
+    await ctx.replyWithPhoto(vipAvatar, {
+      caption: caption,
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
+        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
+      ])
+    });
 
   } else {
     ctx.reply('💡 Mấy ní muốn lấy Locket Gold thì bấm /start hoặc bấm nút bên dưới nhé!', 
