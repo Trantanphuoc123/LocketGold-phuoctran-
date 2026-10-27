@@ -13,7 +13,6 @@ http.createServer((req, res) => {
 
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
 const waitingForUsername = new Set();
-const userConfigLinks = new Map();
 
 // Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
@@ -58,28 +57,6 @@ bot.action('get_locket', async (ctx) => {
   await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
 });
 
-// Khi bấm nút, bot gửi tin nhắn chứa link dạng code để bấm vào hiện menu mở trình duyệt nhanh
-bot.action('copy_config_link', async (ctx) => {
-  await ctx.answerCbQuery('Đã tạo link cấu hình bên dưới! 👇');
-  const configUrl = userConfigLinks.get(ctx.chat.id);
-  
-  if (!configUrl) {
-    await ctx.reply('⚠️ Link cấu hình chưa được tạo hoặc đã hết hạn. Vui lòng bấm "🔄 Tạo lại từ đầu" nhé!');
-    return;
-  }
-
-  await ctx.reply(
-    `📋 **Bấm vào đoạn link bên dưới để mở trình duyệt hoặc sao chép:**\n\n` +
-    `\`${configUrl}\``,
-    {
-      parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([
-        [Markup.button.callback('📖 Xem Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')]
-      ])
-    }
-  );
-});
-
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id;
   const text = ctx.message.text.trim();
@@ -119,17 +96,17 @@ bot.on('text', async (ctx) => {
       } catch (e) {}
 
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-      userConfigLinks.set(ctx.chat.id, mobileConfigUrl);
 
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
         '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
-        '👇 Bấm nút dưới để lấy link cấu hình nhanh:';
+        '👇 Bấm nút dưới để mở trực tiếp trang cấu hình trên Safari:';
 
+      // Nút mở trực tiếp ra trình duyệt ngoài
       const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.callback('📥 Sao Chép Link Cấu Hình', 'copy_config_link')],
+        [Markup.button.url('🌐 Mở Trực Tiếp Safari', mobileConfigUrl)],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
         [
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
@@ -160,12 +137,10 @@ bot.on('text', async (ctx) => {
       } catch (e) {}
 
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-      userConfigLinks.set(ctx.chat.id, mobileConfigUrl);
-
       const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
       
       const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.callback('📥 Sao Chép Link Cấu Hình', 'copy_config_link')],
+        [Markup.button.url('🌐 Mở Trực Tiếp Safari', mobileConfigUrl)],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
         [
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
@@ -176,7 +151,7 @@ bot.on('text', async (ctx) => {
       ]);
 
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm nút dưới để lấy link cấu hình nhanh:',
+        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm nút dưới để mở trực tiếp trang cấu hình trên Safari:',
         parse_mode: 'Markdown',
         ...socialButtons
       });
