@@ -14,12 +14,13 @@ http.createServer((req, res) => {
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
 const waitingForUsername = new Set();
 
-// Nội dung hướng dẫn cài đặt chuẩn
+// Nội dung hướng dẫn cài đặt chuẩn đã đổi tiêu đề cực kỳ thân thiện
 const guideText = 
-  '💛 *HƯỚNG DẪN CÀI ĐẶT LOCKET GOLD VIP* 💛\n' +
+  '💛 *ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA* 💛\n' +
   '🌐 _Cloud 24/7 Online (160.191.242.70:443)_\n\n' +
-  '1️⃣ *Bấm "Tải Cấu Hình DNS Ngay" trên Safari*\n' +
-  'Khi iPhone hỏi *"Trang web này đang cố gắng tải về một hồ sơ cấu hình"* ➔ Bấm **Cho phép (Allow)** ➔ Bấm **Đóng**.\n\n' +
+  '1️⃣ *Tải & Mở Cấu Hình Trên Safari*\n' +
+  '👉 **Giữ chặt** vào nút *"📥 Tải Cấu Hình .mobileconfig"*, sau đó chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để chuyển sang Safari.\n' +
+  'Khi iPhone hiển thị thông báo cố gắng tải về hồ sơ cấu hình ➔ Bấm **Cho phép (Allow)** ➔ Bấm **Đóng**.\n\n' +
   '2️⃣ *Cài Đặt Hồ Sơ Trong Cài Đặt iPhone*\n' +
   'Mở Cài đặt (Settings) ➔ Bấm **"Đã tải về hồ sơ"** ➔ Bấm **Cài đặt** góc trên bên phải ➔ Nhập mật mã mở khóa màn hình.\n\n' +
   '3️⃣ *Vào Cài Đặt Tin Cậy Chứng Nhận*\n' +
@@ -97,7 +98,6 @@ bot.on('text', async (ctx) => {
 
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
 
-      // Đã cập nhật dòng chữ hướng dẫn chính xác theo ý anh
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
