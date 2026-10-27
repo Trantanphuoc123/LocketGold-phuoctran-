@@ -1,9 +1,17 @@
 const { Telegraf, Markup } = require('telegraf');
 const axios = require('axios');
+const http = require('http');
 
-// Token bot của anh
+// Mở cổng HTTP để Render nhận diện và UptimeRobot canh giữ 24/7
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot Locket Gold is running smoothly!\n');
+}).listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
+
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
-
 const waitingForUsername = new Set();
 
 bot.start((ctx) => {
@@ -76,7 +84,7 @@ bot.on('text', async (ctx) => {
         });
       }
 
-    } catch (error) {
+    } else {
       try {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
