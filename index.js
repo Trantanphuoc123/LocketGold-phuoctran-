@@ -86,7 +86,7 @@ bot.on('text', async (ctx) => {
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
           Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
         ],
-        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/hngphan0192')],
+        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
         [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
       ]);
 
@@ -119,7 +119,7 @@ bot.on('text', async (ctx) => {
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
           Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
         ],
-        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/hngphan0192')],
+        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
         [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
       ]);
 
