@@ -13,7 +13,6 @@ http.createServer((req, res) => {
 
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
 const waitingForUsername = new Set();
-// Lưu trữ tạm link cấu hình theo chatId để phục vụ tính năng copy link
 const userConfigLinks = new Map();
 
 // Nội dung hướng dẫn cài đặt chuẩn
@@ -56,12 +55,12 @@ bot.action('show_guide', async (ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForUsername.add(ctx.from.id);
-  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
+  await ctx.reply('👉 Nào, bây mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
 });
 
-// Xử lý khi người dùng bấm nút sao chép link cấu hình
+// Khi bấm nút, bot sẽ gửi ngay một tin nhắn cực ngắn ngay bên dưới chứa link để copy
 bot.action('copy_config_link', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery('Đã tạo link cấu hình bên dưới! 👇');
   const configUrl = userConfigLinks.get(ctx.chat.id);
   
   if (!configUrl) {
@@ -69,15 +68,19 @@ bot.action('copy_config_link', async (ctx) => {
     return;
   }
 
-  const copyText = 
-    '📋 **LINK CẤU HÌNH LOCKET GOLD CỦA BẠN:**\n\n' +
-    '`' + configUrl + '`\n\n' +
-    '💡 **Hướng dẫn nhanh:**\n' +
-    '1. Chạm vào đoạn link mã hóa ở trên để **Sao chép (Copy)**.\n' +
-    '2. Mở ứng dụng **Safari** lên.\n' +
-    '3. Dán (Paste) link vào thanh địa chỉ và bấm **Đi tới** để tải cấu hình mượt mà nhất nhé! ✨';
-
-  await ctx.reply(copyText, { parse_mode: 'Markdown' });
+  // Tin nhắn hiện ngay phía dưới, chỉ cần chạm vào đoạn code là copy, có sẵn nút mở Safari hoặc hướng dẫn
+  await ctx.reply(
+    `📋 **Bấm vào đoạn link dưới để sao chép:**\n\n` +
+    `\`${configUrl}\`\n\n` +
+    `👉 *Sau đó mở Safari dán vào để cài đặt nhé!*`,
+    {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.url('🌐 Mở Trực Tiếp Safari', configUrl)],
+        [Markup.button.callback('📖 Xem Hướng Dẫn Chi Tiết', 'show_guide')]
+      ])
+    }
+  );
 });
 
 bot.on('text', async (ctx) => {
@@ -91,7 +94,6 @@ bot.on('text', async (ctx) => {
 
     const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
-    // Làm sạch username
     let cleanUsername = text
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
       .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
@@ -110,7 +112,6 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
-      // Bóc tách chuẩn ảnh đại diện từ CDN Locket
       const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
       if (matchCdn && matchCdn[1]) {
         realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
@@ -120,10 +121,7 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      // Đường dẫn tải file cấu hình .mobileconfig
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-      
-      // Lưu lại link theo chatId để khi bấm nút copy sẽ lấy đúng link này
       userConfigLinks.set(ctx.chat.id, mobileConfigUrl);
 
       const caption = 
@@ -131,9 +129,8 @@ bot.on('text', async (ctx) => {
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
         '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
-        '👇 Bấm vào nút bên dưới để sao chép link cấu hình hoặc xem hướng dẫn:';
+        '👇 Bấm nút dưới để lấy link cấu hình nhanh:';
 
-      // ⚙️ BỐ CỤC CÁC NÚT BẤM ĐÃ CẬP NHẬT THEO Ý ANH:
       const socialButtons = Markup.inlineKeyboard([
         [Markup.button.callback('📥 Sao Chép Link Cấu Hình', 'copy_config_link')],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
@@ -149,7 +146,7 @@ bot.on('text', async (ctx) => {
         await ctx.replyWithPhoto(realAvatarUrl, {
           caption: caption,
           parse_mode: 'Markdown',
-          ...socialButtons
+            ...socialButtons
         });
       } else {
         const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
@@ -182,7 +179,7 @@ bot.on('text', async (ctx) => {
       ]);
 
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm vào nút bên dưới để sao chép link cấu hình hoặc xem hướng dẫn:',
+        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm nút dưới để lấy link cấu hình nhanh:',
         parse_mode: 'Markdown',
         ...socialButtons
       });
