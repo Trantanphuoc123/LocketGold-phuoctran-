@@ -38,9 +38,9 @@ bot.on('text', async (ctx) => {
   if (waitingForUsername.has(userId)) {
     waitingForUsername.delete(userId);
 
-    const processingMsg = await ctx.reply('⏳ Đang xử lý và bóc tách thông tin...');
+    const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
-    // Xử lý chuẩn hóa username cực kỳ triệt để và sạch sẽ
+    // Làm sạch username
     let cleanUsername = text
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
       .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
@@ -59,7 +59,7 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
-      // Bóc tách chính xác ảnh đại diện từ CDN
+      // Bóc tách chuẩn ảnh đại diện từ CDN Locket
       const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
       if (matchCdn && matchCdn[1]) {
         realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
@@ -69,21 +69,22 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      // Tạo đường link tải profile chuẩn xác không bị lỗi
-      const downloadLink = `https://locket.cam/${cleanUsername}`;
+      // ĐÚNG CHUẨN ĐƯỜNG DẪN TẢI FILE CẤU HÌNH (DNS / MOBILECONFIG) MÀ ANH CẦN:
+      // (Anh có thể thay thế phần domain sslip.io hoặc link server tạo file của anh vào đây nếu có thay đổi)
+      const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
 
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
-        '👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:';
+        '👇 Bấm vào nút bên dưới để tải cấu hình về máy nhé:';
 
       if (realAvatarUrl) {
         await ctx.replyWithPhoto(realAvatarUrl, {
           caption: caption,
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', downloadLink)],
+            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
             [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
           ])
         });
@@ -93,7 +94,7 @@ bot.on('text', async (ctx) => {
           caption: caption,
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', downloadLink)],
+            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
             [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
           ])
         });
@@ -104,14 +105,14 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      const downloadLink = `https://locket.cam/${cleanUsername}`;
+      const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
       const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
       
       await ctx.replyWithPhoto(fallbackImg, {
         caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:',
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
-          [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', downloadLink)],
+          [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
           [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
         ])
       });
