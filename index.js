@@ -2,19 +2,16 @@ const { Telegraf, Markup } = require('telegraf');
 const axios = require('axios');
 const http = require('http');
 
-// Mở cổng HTTP để Render nhận diện, phục vụ trang hướng dẫn mở Safari và file mobileconfig 24/7
+// Mở cổng HTTP để Render nhận diện và phục vụ trang hướng dẫn mở Safari 24/7
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
-  // Xử lý khi khách bấm vào link .mobileconfig trên bot
   if (req.url.startsWith('/locket_gold.mobileconfig')) {
     const urlParams = new URLSearchParams(req.url.split('?')[1]);
     const username = urlParams.get('username') || 'user';
     
-    // Kiểm tra xem người dùng có truyền cợt tải thật hay đang mở qua trình duyệt Telegram không
     const userAgent = req.headers['user-agent'] || '';
     const isTelegram = userAgent.includes('Telegram') || userAgent.includes('FBAN') || userAgent.includes('FBAV');
 
-    // Nếu bấm từ Safari hoặc đã kích hoạt tải, trả về file cấu hình thật cho máy nhận diện
     if (!isTelegram || urlParams.get('download') === '1') {
       res.writeHead(200, {
         'Content-Type': 'application/x-apple-aspen-config',
@@ -39,7 +36,6 @@ http.createServer((req, res) => {
       return;
     }
 
-    // Nếu mở trong Telegram thì hiển thị giao diện hướng dẫn "Mở bằng Safari" cực kỳ chuyên nghiệp
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(`
       <!DOCTYPE html>
@@ -89,7 +85,6 @@ http.createServer((req, res) => {
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
 const waitingForUsername = new Set();
 
-// Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
   '💛 *HƯỚNG DẪN CÀI ĐẶT LOCKET GOLD VIP* 💛\n' +
   '🌐 _Cloud 24/7 Online (160.191.242.70:443)_\n\n' +
@@ -143,12 +138,32 @@ bot.on('text', async (ctx) => {
 
     const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
-    // Làm sạch username
     let cleanUsername = text
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
       .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
+      .replace(/[`"'']/g, '')
       .replace(/\//g, '')
       .trim();
+
+    const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
+    const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
+    
+    // 🔥 Dùng cú pháp safari- để ép mở thẳng Safari, bỏ qua bảng cảnh báo an toàn của Telegram
+    const socialButtons = Markup.inlineKeyboard([
+      [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', `safari-${mobileConfigUrl}`)],
+      [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
+      [
+        Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
+        Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
+      ],
+      [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
+      [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
+    ]);
+
+    const caption = 
+      '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n' +
+      '⚠️ *Lưu ý: Nếu dùng Telegram, hãy bấm vào nút tải bên dưới rồi làm theo hướng dẫn mở Safari nhé!*\n\n' +
+      '👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn:';
 
     try {
       const profileUrl = `https://locket.cam/${cleanUsername}`;
@@ -162,7 +177,6 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
-      // Bóc tách chuẩn ảnh đại diện từ CDN Locket
       const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
       if (matchCdn && matchCdn[1]) {
         realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
@@ -172,28 +186,6 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      // Đường dẫn tải file cấu hình .mobileconfig
-      const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-
-      const caption = 
-        '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
-        '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
-        '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
-        '⚠️ *Lưu ý: Nếu dùng Telegram, hãy bấm vào nút tải bên dưới rồi làm theo hướng dẫn mở Safari nhé!*\n\n' +
-        '👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn cài đặt:';
-
-      // ⚙️ BỐ CỤC CÁC NÚT BẤM CỰC KỲ GỌN GÀNG VÀ CHUYÊN NGHIỆP:
-      const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-        [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
-        [
-          Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
-          Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
-        ],
-        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
-        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-      ]);
-
       if (realAvatarUrl) {
         await ctx.replyWithPhoto(realAvatarUrl, {
           caption: caption,
@@ -201,7 +193,6 @@ bot.on('text', async (ctx) => {
           ...socialButtons
         });
       } else {
-        const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
         await ctx.replyWithPhoto(fallbackImg, {
           caption: caption,
           parse_mode: 'Markdown',
@@ -214,22 +205,8 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-      const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
-      
-      const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-        [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
-        [
-          Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
-          Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
-        ],
-        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
-        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-      ]);
-
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu dùng Telegram, hãy bấm vào nút tải bên dưới rồi làm theo hướng dẫn mở Safari nhé!*\n\n👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn:',
+        caption: caption,
         parse_mode: 'Markdown',
         ...socialButtons
       });
