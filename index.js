@@ -84,7 +84,7 @@ bot.on('text', async (ctx) => {
         });
       }
 
-    } else {
+    } catch (error) {
       try {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
