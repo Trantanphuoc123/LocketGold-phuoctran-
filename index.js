@@ -38,14 +38,13 @@ bot.on('text', async (ctx) => {
   if (waitingForUsername.has(userId)) {
     waitingForUsername.delete(userId);
 
-    const processingMsg = await ctx.reply('⏳ Đang quét thông tin tài khoản Locket...');
+    const processingMsg = await ctx.reply('⏳ Đang quét thông tin và bóc ảnh đại diện Locket...');
 
     try {
-      // Chuẩn hóa input: nếu người dùng gửi dạng link hoặc username đều xử lý được
-      let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('/', '');
+      // Chuẩn hóa input: bóc tách ra đúng username sạch sẽ
+      let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('https://locket.com/', '').replace('/', '');
       const profileUrl = `https://locket.cam/${cleanUsername}`;
 
-      // Lấy mã nguồn trang web profile của Locket
       const response = await axios.get(profileUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1'
@@ -54,18 +53,32 @@ bot.on('text', async (ctx) => {
 
       const html = response.data;
       
-      // Bóc tách thẻ chứa ảnh đại diện (og:image) từ mã nguồn trang web Locket
       let avatarUrl = null;
-      const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-      if (ogImageMatch && ogImageMatch[1]) {
-        avatarUrl = ogImageMatch[1];
+      
+      // Bóc tách ảnh avatar cá nhân từ các thẻ meta profile chuẩn của Locket
+      // 1. Quét tìm thẻ ảnh avatar riêng nếu có cấu trúc đặc biệt
+      const avatarMatch = html.match(/property="og:image"\s+content="([^"]+)"/) || html.match(/rel="image_src"\s+href="([^"]+)"/);
+      
+      // Lọc bỏ ảnh banner chung (nếu trang trả về ảnh widget mặc định, ta sẽ dựng link avatar theo cấu trúc user)
+      let rawImg = avatarMatch ? avatarMatch[1] : null;
+      
+      if (rawImg && !rawImg.includes('logo') && !rawImg.includes('widget') && !rawImg.includes('default')) {
+        avatarUrl = rawImg;
+      } else {
+        // Fallback: Tìm kiếm trực tiếp link ảnh user trong mã nguồn HTML
+        const imgRegex = /https:\/\/storage\.googleapis\.com\/[^"'\s]+/g;
+        const foundImages = html.match(imgRegex);
+        if (foundImages && foundImages.length > 0) {
+          // Lấy bức ảnh đầu tiên không phải là logo chung
+          avatarUrl = foundImages.find(img => !img.includes('logo') && !img.includes('banner')) || foundImages[0];
+        }
       }
 
-      // Bóc tách tên hiển thị (og:title)
+      // Lấy tên hiển thị thực tế của người dùng từ thẻ tiêu đề trang web
       let displayName = cleanUsername;
-      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-      if (ogTitleMatch && ogTitleMatch[1]) {
-        displayName = ogTitleMatch[1];
+      const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+      if (titleMatch && titleMatch[1]) {
+        displayName = titleMatch[1].replace('on Locket', '').replace('Locket', '').trim();
       }
 
       try {
@@ -89,6 +102,7 @@ bot.on('text', async (ctx) => {
           ])
         });
       } else {
+        // Nếu không quét được ảnh, dùng luôn ảnh mặc định chất lượng cao hoặc gửi dạng text kèm nút
         await ctx.reply(caption, {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
@@ -103,7 +117,6 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      // Nếu không quét được trang web, vẫn gửi thông tin thành công để không bị gián đoạn
       await ctx.reply(
         '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + text + '`\n\n' +
         '👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:',
