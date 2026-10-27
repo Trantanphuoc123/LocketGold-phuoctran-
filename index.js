@@ -69,34 +69,39 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      // ĐÚNG CHUẨN ĐƯỜNG DẪN TẢI FILE CẤU HÌNH (DNS / MOBILECONFIG) MÀ ANH CẦN:
-      // (Anh có thể thay thế phần domain sslip.io hoặc link server tạo file của anh vào đây nếu có thay đổi)
+      // Đường dẫn tải file cấu hình .mobileconfig
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
 
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
+        '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
         '👇 Bấm vào nút bên dưới để tải cấu hình về máy nhé:';
+
+      // ⚙️ BỐ CỤC CÁC NÚT BẤM CỰC KỲ GỌN GÀNG VÀ CHUYÊN NGHIỆP:
+      const socialButtons = Markup.inlineKeyboard([
+        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
+        [
+          Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
+          Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
+        ],
+        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/hngphan0192')],
+        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
+      ]);
 
       if (realAvatarUrl) {
         await ctx.replyWithPhoto(realAvatarUrl, {
           caption: caption,
           parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-            [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-          ])
+          ...socialButtons
         });
       } else {
         const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
         await ctx.replyWithPhoto(fallbackImg, {
           caption: caption,
           parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-            [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-          ])
+          ...socialButtons
         });
       }
 
@@ -108,13 +113,20 @@ bot.on('text', async (ctx) => {
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
       const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
       
+      const socialButtons = Markup.inlineKeyboard([
+        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
+        [
+          Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
+          Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
+        ],
+        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/hngphan0192')],
+        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
+      ]);
+
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:',
+        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm vào nút bên dưới để tải cấu hình về máy nhé:',
         parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-          [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-        ])
+        ...socialButtons
       });
     }
 
