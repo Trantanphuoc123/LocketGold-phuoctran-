@@ -68,7 +68,6 @@ bot.on('text', async (ctx) => {
 
     const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
-    // Làm sạch username
     let cleanUsername = text
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
       .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
@@ -87,7 +86,6 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
-      // Bóc tách chuẩn ảnh đại diện từ CDN Locket
       const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
       if (matchCdn && matchCdn[1]) {
         realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
@@ -97,17 +95,16 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
-      // Đường dẫn tải file cấu hình .mobileconfig
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
 
+      // Đã cập nhật dòng chữ hướng dẫn chính xác theo ý anh
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
         '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
-        '👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn cài đặt:';
+        '👉 Bạn vui lòng **GIỮ VÀO NÚT** tải cấu hình `.mobileconfig` dưới đây rồi chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để cài đặt nhé! 👇';
 
-      // ⚙️ BỐ CỤC CÁC NÚT BẤM CỰC KỲ GỌN GÀNG VÀ CHUYÊN NGHIỆP:
       const socialButtons = Markup.inlineKeyboard([
         [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
@@ -154,7 +151,7 @@ bot.on('text', async (ctx) => {
       ]);
 
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn:',
+        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👉 Bạn vui lòng **GIỮ VÀO NÚT** tải cấu hình `.mobileconfig` dưới đây rồi chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để cài đặt nhé! 👇',
         parse_mode: 'Markdown',
         ...socialButtons
       });
