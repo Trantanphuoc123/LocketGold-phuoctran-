@@ -50,9 +50,12 @@ bot.on('text', async (ctx) => {
         }
       });
 
+      console.log('API Response:', JSON.stringify(response.data));
+
       const userData = response.data.user || response.data;
-      const avatarUrl = userData.profile_picture_url || userData.avatar_url;
-      const displayName = userData.display_name || text;
+      // Quét tất cả các tên biến có thể chứa link ảnh đại diện
+      const avatarUrl = userData.profile_picture_url || userData.avatar_url || userData.profilePic || userData.avatar || userData.picture || userData.profile_pic;
+      const displayName = userData.display_name || userData.name || text;
 
       try {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
