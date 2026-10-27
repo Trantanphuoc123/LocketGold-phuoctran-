@@ -16,7 +16,7 @@ const waitingForUsername = new Set();
 
 bot.start((ctx) => {
   ctx.reply(
-    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold rồi chứ gì? Chiều lòng mấy ní hết nấc luôn\n👉 Bấm ngay nút bên dưới để tiến hành nhập Username mở cổng không gian VIP ngay thôi! ✨',
+    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold rồi chứ gì? Chiều lòng mấy ní hết nấc luôn\n👉 Bấm ngay nút bên dưới để tiến hành nhập Link hoặc Username Locket ngay thôi! ✨',
     Markup.inlineKeyboard([
       [Markup.button.callback('✨ Nhận Locket Gold Ngay', 'get_locket')]
     ])
@@ -26,7 +26,7 @@ bot.start((ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForUsername.add(ctx.from.id);
-  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Username** tài khoản Locket của mình vào đây nhé:');
+  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
 });
 
 bot.on('text', async (ctx) => {
@@ -38,24 +38,35 @@ bot.on('text', async (ctx) => {
   if (waitingForUsername.has(userId)) {
     waitingForUsername.delete(userId);
 
-    const processingMsg = await ctx.reply('⏳ Đang quét thông tin và lấy Avatar của tài khoản @' + text + '...');
+    const processingMsg = await ctx.reply('⏳ Đang quét thông tin tài khoản Locket...');
 
     try {
-      const response = await axios.post('https://api.locket.camera/v2/user/lookup_username', {
-        username: text
-      }, {
+      // Chuẩn hóa input: nếu người dùng gửi dạng link hoặc username đều xử lý được
+      let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('/', '');
+      const profileUrl = `https://locket.cam/${cleanUsername}`;
+
+      // Lấy mã nguồn trang web profile của Locket
+      const response = await axios.get(profileUrl, {
         headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Locket/1.42.0 (iPhone; iOS 17.2; Scale/3.00)'
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1'
         }
       });
 
-      console.log('API Response:', JSON.stringify(response.data));
+      const html = response.data;
+      
+      // Bóc tách thẻ chứa ảnh đại diện (og:image) từ mã nguồn trang web Locket
+      let avatarUrl = null;
+      const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+      if (ogImageMatch && ogImageMatch[1]) {
+        avatarUrl = ogImageMatch[1];
+      }
 
-      const userData = response.data.user || response.data;
-      // Quét tất cả các tên biến có thể chứa link ảnh đại diện
-      const avatarUrl = userData.profile_picture_url || userData.avatar_url || userData.profilePic || userData.avatar || userData.picture || userData.profile_pic;
-      const displayName = userData.display_name || userData.name || text;
+      // Bóc tách tên hiển thị (og:title)
+      let displayName = cleanUsername;
+      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
+      if (ogTitleMatch && ogTitleMatch[1]) {
+        displayName = ogTitleMatch[1];
+      }
 
       try {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
@@ -64,7 +75,7 @@ bot.on('text', async (ctx) => {
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket!**\n\n' +
         '👤 **Tên hiển thị:** ' + displayName + '\n' +
-        '🔗 **Username:** `' + text + '`\n' +
+        '🔗 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã sẵn sàng kích hoạt Locket Gold!\n\n' +
         '👇 Bấm vào nút bên dưới để tải cấu hình về máy nhé:';
 
@@ -92,6 +103,7 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
+      // Nếu không quét được trang web, vẫn gửi thông tin thành công để không bị gián đoạn
       await ctx.reply(
         '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + text + '`\n\n' +
         '👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:',
