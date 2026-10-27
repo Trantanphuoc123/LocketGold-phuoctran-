@@ -55,10 +55,10 @@ bot.action('show_guide', async (ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForUsername.add(ctx.from.id);
-  await ctx.reply('👉 Nào, bây mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
+  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
 });
 
-// Khi bấm nút, bot sẽ gửi ngay một tin nhắn cực ngắn ngay bên dưới chứa link để copy
+// Khi bấm nút, bot gửi tin nhắn chứa link dạng code để bấm vào hiện menu mở trình duyệt nhanh
 bot.action('copy_config_link', async (ctx) => {
   await ctx.answerCbQuery('Đã tạo link cấu hình bên dưới! 👇');
   const configUrl = userConfigLinks.get(ctx.chat.id);
@@ -68,16 +68,13 @@ bot.action('copy_config_link', async (ctx) => {
     return;
   }
 
-  // Tin nhắn hiện ngay phía dưới, chỉ cần chạm vào đoạn code là copy, có sẵn nút mở Safari hoặc hướng dẫn
   await ctx.reply(
-    `📋 **Bấm vào đoạn link dưới để sao chép:**\n\n` +
-    `\`${configUrl}\`\n\n` +
-    `👉 *Sau đó mở Safari dán vào để cài đặt nhé!*`,
+    `📋 **Bấm vào đoạn link bên dưới để mở trình duyệt hoặc sao chép:**\n\n` +
+    `\`${configUrl}\``,
     {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.url('🌐 Mở Trực Tiếp Safari', configUrl)],
-        [Markup.button.callback('📖 Xem Hướng Dẫn Chi Tiết', 'show_guide')]
+        [Markup.button.callback('📖 Xem Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')]
       ])
     }
   );
@@ -146,7 +143,7 @@ bot.on('text', async (ctx) => {
         await ctx.replyWithPhoto(realAvatarUrl, {
           caption: caption,
           parse_mode: 'Markdown',
-            ...socialButtons
+          ...socialButtons
         });
       } else {
         const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
