@@ -38,9 +38,14 @@ bot.on('text', async (ctx) => {
   if (waitingForUsername.has(userId)) {
     waitingForUsername.delete(userId);
 
-    const processingMsg = await ctx.reply('⏳ Đang bóc trọn ảnh đại diện chính chủ từ CDN Locket...');
+    const processingMsg = await ctx.reply('⏳ Đang xử lý và bóc tách thông tin...');
 
-    let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('https://locket.com/', '').replace('/', '');
+    // Xử lý chuẩn hóa username cực kỳ triệt để và sạch sẽ
+    let cleanUsername = text
+      .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
+      .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
+      .replace(/\//g, '')
+      .trim();
 
     try {
       const profileUrl = `https://locket.cam/${cleanUsername}`;
@@ -54,18 +59,18 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
-      // SỬ DỤNG REGEX CHUẨN XÁC DỰA TRÊN HTML ANH VỪA CUNG CẤP:
-      // Quét tìm link chứa cdn2.locketcamera.com và profile_pic.webp
-      const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/) || html.match(/class="profile-pic-img"[^>]*src="([^"]+)"/);
-      
+      // Bóc tách chính xác ảnh đại diện từ CDN
+      const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
       if (matchCdn && matchCdn[1]) {
-        // Thay thế các ký tự HTML encoded nếu có (như &amp; thành &)
         realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
       }
 
       try {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
+
+      // Tạo đường link tải profile chuẩn xác không bị lỗi
+      const downloadLink = `https://locket.cam/${cleanUsername}`;
 
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
@@ -78,7 +83,7 @@ bot.on('text', async (ctx) => {
           caption: caption,
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
+            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', downloadLink)],
             [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
           ])
         });
@@ -88,7 +93,7 @@ bot.on('text', async (ctx) => {
           caption: caption,
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
+            [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', downloadLink)],
             [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
           ])
         });
@@ -99,12 +104,14 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
+      const downloadLink = `https://locket.cam/${cleanUsername}`;
       const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
+      
       await ctx.replyWithPhoto(fallbackImg, {
         caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n👇 Bấm vào nút bên dưới để tải file cấu hình về máy nhé:',
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
-          [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', 'https://t.me/phuogamegroup')],
+          [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', downloadLink)],
           [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
         ])
       });
