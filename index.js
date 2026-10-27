@@ -13,6 +13,8 @@ http.createServer((req, res) => {
 
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
 const waitingForUsername = new Set();
+// Lưu trữ tạm link cấu hình theo chatId để phục vụ tính năng copy link
+const userConfigLinks = new Map();
 
 // Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
@@ -57,6 +59,27 @@ bot.action('get_locket', async (ctx) => {
   await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
 });
 
+// Xử lý khi người dùng bấm nút sao chép link cấu hình
+bot.action('copy_config_link', async (ctx) => {
+  await ctx.answerCbQuery();
+  const configUrl = userConfigLinks.get(ctx.chat.id);
+  
+  if (!configUrl) {
+    await ctx.reply('⚠️ Link cấu hình chưa được tạo hoặc đã hết hạn. Vui lòng bấm "🔄 Tạo lại từ đầu" nhé!');
+    return;
+  }
+
+  const copyText = 
+    '📋 **LINK CẤU HÌNH LOCKET GOLD CỦA BẠN:**\n\n' +
+    '`' + configUrl + '`\n\n' +
+    '💡 **Hướng dẫn nhanh:**\n' +
+    '1. Chạm vào đoạn link mã hóa ở trên để **Sao chép (Copy)**.\n' +
+    '2. Mở ứng dụng **Safari** lên.\n' +
+    '3. Dán (Paste) link vào thanh địa chỉ và bấm **Đi tới** để tải cấu hình mượt mà nhất nhé! ✨';
+
+  await ctx.reply(copyText, { parse_mode: 'Markdown' });
+});
+
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id;
   const text = ctx.message.text.trim();
@@ -99,17 +122,20 @@ bot.on('text', async (ctx) => {
 
       // Đường dẫn tải file cấu hình .mobileconfig
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
+      
+      // Lưu lại link theo chatId để khi bấm nút copy sẽ lấy đúng link này
+      userConfigLinks.set(ctx.chat.id, mobileConfigUrl);
 
       const caption = 
         '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
         '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
-        '👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn cài đặt:';
+        '👇 Bấm vào nút bên dưới để sao chép link cấu hình hoặc xem hướng dẫn:';
 
-      // ⚙️ BỐ CỤC CÁC NÚT BẤM CỰC KỲ GỌN GÀNG VÀ CHUYÊN NGHIỆP:
+      // ⚙️ BỐ CỤC CÁC NÚT BẤM ĐÃ CẬP NHẬT THEO Ý ANH:
       const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
+        [Markup.button.callback('📥 Sao Chép Link Cấu Hình', 'copy_config_link')],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
         [
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
@@ -140,10 +166,12 @@ bot.on('text', async (ctx) => {
       } catch (e) {}
 
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
+      userConfigLinks.set(ctx.chat.id, mobileConfigUrl);
+
       const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
       
       const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
+        [Markup.button.callback('📥 Sao Chép Link Cấu Hình', 'copy_config_link')],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
         [
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
@@ -154,7 +182,7 @@ bot.on('text', async (ctx) => {
       ]);
 
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn:',
+        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm vào nút bên dưới để sao chép link cấu hình hoặc xem hướng dẫn:',
         parse_mode: 'Markdown',
         ...socialButtons
       });
