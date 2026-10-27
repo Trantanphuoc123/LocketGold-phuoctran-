@@ -38,12 +38,13 @@ bot.on('text', async (ctx) => {
   if (waitingForUsername.has(userId)) {
     waitingForUsername.delete(userId);
 
-    const processingMsg = await ctx.reply('⏳ Đang bóc trọn ảnh đại diện chính chủ...');
+    const processingMsg = await ctx.reply('⏳ Đang bóc ảnh đại diện chính chủ...');
 
     // Chuẩn hóa input lấy đúng username sạch sẽ
     let cleanUsername = text.replace('https://locket.cam/', '').replace('http://locket.cam/', '').replace('https://locket.com/', '').replace('/', '');
 
     try {
+      // Gọi trực tiếp đến trang profile để lấy nội dung HTML phân tích
       const profileUrl = `https://locket.cam/${cleanUsername}`;
       const response = await axios.get(profileUrl, {
         headers: {
@@ -54,10 +55,11 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
-      // Bóc tách chính xác link ảnh từ thẻ <img class="profile-pic-img" src="..."> như ảnh anh vừa soi[span_4](start_span)[span_4](end_span)
-      const imgMatch = html.match(/class="profile-pic-img"[^>]*src="([^"]+)"/) || html.match(/src="([^"]+cdn2\.locketcamera\.com[^"]+)"/);
-      if (imgMatch && imgMatch[1]) {
-        realAvatarUrl = imgMatch[1];
+      // Quét toàn bộ link ảnh có chứa từ khóa storage / avatar / user trong mã nguồn trang cá nhân
+      const matches = html.match(/https:\/\/storage\.googleapis\.com\/[^"'\s\?#]+/g);
+      if (matches && matches.length > 0) {
+        // Lọc lấy bức ảnh cá nhân (thường là ảnh đầu tiên hoặc ảnh có chứa định dạng user)
+        realAvatarUrl = matches.find(img => !img.includes('logo') && !img.includes('default') && !img.includes('banner')) || matches[0];
       }
 
       try {
@@ -80,6 +82,7 @@ bot.on('text', async (ctx) => {
           ])
         });
       } else {
+        // Dự phòng nếu không bắt được link ảnh cdn, dùng ảnh fallback chuẩn
         await ctx.reply(caption, {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
