@@ -68,6 +68,7 @@ bot.on('text', async (ctx) => {
 
     const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
+    // Làm sạch username
     let cleanUsername = text
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
       .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
@@ -86,6 +87,7 @@ bot.on('text', async (ctx) => {
       const html = response.data;
       let realAvatarUrl = null;
 
+      // Bóc tách chuẩn ảnh đại diện từ CDN Locket
       const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
       if (matchCdn && matchCdn[1]) {
         realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
@@ -95,6 +97,7 @@ bot.on('text', async (ctx) => {
         await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       } catch (e) {}
 
+      // Đường dẫn tải file cấu hình .mobileconfig
       const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
 
       const caption = 
@@ -102,11 +105,11 @@ bot.on('text', async (ctx) => {
         '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
         '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
         '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
-        '👇 Bấm nút dưới để mở trực tiếp trang cấu hình trên Safari:';
+        '👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn cài đặt:';
 
-      // Nút mở trực tiếp ra trình duyệt ngoài
+      // ⚙️ BỐ CỤC CÁC NÚT BẤM CỰC KỲ GỌN GÀNG VÀ CHUYÊN NGHIỆP:
       const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('🌐 Mở Trực Tiếp Safari', mobileConfigUrl)],
+        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
         [
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
@@ -140,7 +143,7 @@ bot.on('text', async (ctx) => {
       const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
       
       const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('🌐 Mở Trực Tiếp Safari', mobileConfigUrl)],
+        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
         [
           Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
@@ -151,7 +154,7 @@ bot.on('text', async (ctx) => {
       ]);
 
       await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm nút dưới để mở trực tiếp trang cấu hình trên Safari:',
+        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👇 Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn:',
         parse_mode: 'Markdown',
         ...socialButtons
       });
