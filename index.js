@@ -15,7 +15,7 @@ http.createServer((req, res) => {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const waitingForUsername = new Set();
 
-// Nội dung hướng dẫn cài đặt chuẩn
+// Nội dung hướng dẫn cài đặt chuẩn với tên chứng chỉ mang thương hiệu cá nhân
 const guideText = 
   '💛 *ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA* 💛\n' +
   '🌐 _Cloud 24/7 Online (160.191.242.70:443)_\n\n' +
@@ -26,8 +26,8 @@ const guideText =
   'Mở Cài đặt (Settings) ➔ Bấm **"Đã tải về hồ sơ"** ➔ Bấm **Cài đặt** góc trên bên phải ➔ Nhập mật mã mở khóa màn hình.\n\n' +
   '3️⃣ *Vào Cài Đặt Tin Cậy Chứng Nhận*\n' +
   'Vào Cài đặt ➔ Cài đặt chung (General) ➔ Giới thiệu (About) ➔ Cuộn xuống dưới cùng chọn **"Cài đặt tin cậy chứng nhận"** (Certificate Trust Settings).\n\n' +
-  '4️⃣ *Bật Xanh Công Tắc Chứng Chỉ "Locket Gold Root CA"*\n' +
-  'Tại mục *"Bật toàn bộ tin cậy cho các chứng chỉ gốc"* ➔ Gạt **BẬT XANH** dòng **"Locket Gold Root CA"** ➔ Chọn Tiếp tục (Continue).\n\n' +
+  '4️⃣ *Bật Xanh Công Tắc Chứng Chỉ "Phước Trần Locket CA"*\n' +
+  'Tại mục *"Bật toàn bộ tin cậy cho các chứng chỉ gốc"* ➔ Gạt **BẬT XANH** dòng **"Phước Trần Locket CA"** ➔ Chọn Tiếp tục (Continue).\n\n' +
   '5️⃣ *Mở App & Tận Hưởng*\n' +
   'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu **Locket Gold**, quay video 30s/90s, bộ khung & caption tiếng Việt sẽ lập tức kích hoạt!\n\n' +
   '💡 *LƯU Ý QUAN TRỌNG:*\n' +
