@@ -11,9 +11,8 @@ http.createServer((req, res) => {
 });
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const waitingForPackage = new Map(); // userId -> { packageName, price }
+const waitingForPackage = new Map();
 
-// Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
   '💛 *ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA* 💛\n\n' +
   '1️⃣ *Tải & Mở Cấu Hình Trên Safari*\n' +
@@ -26,7 +25,7 @@ const guideText =
   '4️⃣ *Bật Xanh Công Tắc Chứng Chỉ "Locket Gold Root CA"*\n' +
   'Tại mục *"Bật toàn bộ tin cậy cho các chứng chỉ gốc"* ➔ Gạt **BẬT XANH** dòng **"Locket Gold Root CA"** ➔ Chọn Tiếp tục (Continue).\n\n' +
   '5️⃣ *Mở App & Tận Hưởng*\n' +
-  'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu **Locket Gold**, quay video 30s/90s, bộ khung & caption tiếng Việt sẽ lập tức kích hoạt!';
+  'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu **Locket Gold**, quay video 30s/90s, bộ khung & caption độc quyền!';
 
 bot.start((ctx) => {
   ctx.reply(
@@ -51,11 +50,11 @@ bot.action('show_guide', async (ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.reply(
-    '💎 *BẢNG GIÁ KÍCH HOẠT LOCKET GOLD (VIP)* 💎\n\n' +
-    '✨ *Đặc quyền:* Mở khóa Locket Gold ổn định suốt thời hạn gói cước, quay video dài 30s/90s, bộ khung & caption độc quyền, bảo hành uy tín 24/7!\n\n' +
+    '💎 *BẢNG GIÁ KÍCH HOẠT LOCKET GOLD VIP* 💎\n\n' +
+    '🔥 *Đặc quyền siêu xịn:* Mở khóa full icon xịn, huy hiệu Locket Gold lung linh, quay video dài 30s/90s không giới hạn, trọn bộ khung ảnh & caption độc quyền! Hoạt động ổn định suốt thời hạn gói cước, bảo hành uy tín 24/7! 🚀\n\n' +
     '📦 *LỰA CHỌN GÓI DỊCH VỤ:*\n' +
-    '• 🥈 *Gói 6 Tháng:* `60.000đ`\n' +
-    '• 🥇 *Gói 1 Năm:* `100.000đ`\n\n' +
+    '• 🥈 *Gói 6 Tháng:* `60.000đ` (Siêu tiết kiệm)\n' +
+    '• 🥇 *Gói 1 Năm:* `100.000đ` (Dùng cả năm cực hời)\n\n' +
     '👉 Bạn muốn đăng ký gói nào? Hãy bấm chọn bên dưới nhé:',
     {
       parse_mode: 'Markdown',
@@ -105,7 +104,7 @@ bot.on('text', async (ctx) => {
 
     const transferSyntax = `LOCKET ${cleanUsername}`;
 
-    // Tạo Link VietQR tự động sinh QR chuẩn xác theo số tiền và nội dung chuyển khoản
+    // Sử dụng link VietQR chuẩn xác
     const qrImageUrl = `https://img.vietqr.io/image/MB-3955555666666-compact2.png?amount=${pkgInfo.amount}&addInfo=${encodeURIComponent(transferSyntax)}&accountName=${encodeURIComponent('TRAN TAN PHUOC')}`;
 
     const paymentCaption = 
@@ -117,11 +116,11 @@ bot.on('text', async (ctx) => {
       '• *Ngân hàng:* MB BANK (Ngân Hàng Quân Đội)\n' +
       '• *Số tài khoản:* `3955555666666`\n' +
       '• *Chủ tài khoản:* `TRAN TAN PHUOC`\n' +
-      '• *Số tiền:* `' + pkgInfo.display + '`\n' +
-      '• *Nội dung chuyển khoản (CỰC KỲ QUAN TRỌNG):*\n' +
+      '• *Số tiền:* ` ' + pkgInfo.display + ' `\n' +
+      '• *Nội dung chuyển khoản (BẮT BUỘC ĐÚNG):*\n' +
       '`' + transferSyntax + '`\n\n' +
-      '📸 *HƯỚNG DẪN NHÂN HÀNG:*\n' +
-      'Quét mã QR bên trên hoặc chuyển khoản đúng STK & nội dung. Sau đó *gửi ảnh chụp bill (biên lai chuyển tiền)* vào đây để Admin duyệt và gửi link cấu hình ngay lập tức nhé! ❤️';
+      '📸 *HƯỚNG DẪN NHẬN HÀNG:*\n' +
+      'Quét mã QR trên ảnh hoặc chuyển khoản đúng STK & nội dung. Sau đó *gửi ảnh chụp bill (biên lai chuyển tiền)* vào đây để Admin duyệt ngay lập tức nhé! ❤️';
 
     const socialButtons = Markup.inlineKeyboard([
       [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')],
@@ -129,14 +128,16 @@ bot.on('text', async (ctx) => {
     ]);
 
     try {
-      await ctx.replyWithPhoto(qrImageUrl, {
+      // Gửi ảnh QR kèm caption
+      await ctx.replyWithPhoto({ url: qrImageUrl }, {
         caption: paymentCaption,
         parse_mode: 'Markdown',
         ...socialButtons
       });
     } catch (err) {
-      // Fallback nếu gửi ảnh lỗi
-      await ctx.reply(paymentCaption, {
+      console.log('Lỗi gửi ảnh QR:', err);
+      // Fallback nếu lỗi mạng ảnh, gửi text kèm link QR trực tiếp
+      await ctx.reply(paymentCaption + '\n\n🔗 Link QR quét nhanh: ' + qrImageUrl, {
         parse_mode: 'Markdown',
         ...socialButtons
       });
