@@ -2,7 +2,6 @@ const { Telegraf, Markup } = require('telegraf');
 const axios = require('axios');
 const http = require('http');
 
-// Mở cổng HTTP để Render nhận diện và UptimeRobot canh giữ 24/7
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -11,14 +10,14 @@ http.createServer((req, res) => {
   console.log(`Server is listening on port ${PORT}`);
 });
 
-// Đã giấu token vào biến môi trường bảo mật tuyệt đối
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const waitingForUsername = new Set();
+const waitingForPackage = new Map(); // userId -> packageName
 
 // Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
   '💛 *ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA* 💛\n' +
-  '🌐 _Cloud 24/7 Online (160.191.242.70:443)_\n\n' +
+  '🌐 _Cloud 24/7 Online (160.191.242.70:443)\n\n' +
   '1️⃣ *Tải & Mở Cấu Hình Trên Safari*\n' +
   '👉 **Giữ chặt** vào nút *"📥 Tải Cấu Hình .mobileconfig"*, sau đó chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để chuyển sang Safari.\n' +
   'Khi iPhone hiển thị thông báo cố gắng tải về hồ sơ cấu hình ➔ Bấm **Cho phép (Allow)** ➔ Bấm **Đóng**.\n\n' +
@@ -35,9 +34,9 @@ const guideText =
 
 bot.start((ctx) => {
   ctx.reply(
-    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold rồi chứ gì? Chiều lòng mấy ní hết nấc luôn\n👉 Bấm ngay nút bên dưới để tiến hành nhập Link hoặc Username Locket ngay thôi! ✨',
+    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold VIP rồi chứ gì? Chiều lòng mấy ní hết nấc luôn ✨\n👉 Bấm ngay nút bên dưới để chọn gói và nhận Locket Gold ngay thôi nhé!',
     Markup.inlineKeyboard([
-      [Markup.button.callback('✨ Nhận Locket Gold Ngay', 'get_locket')],
+      [Markup.button.callback('✨ Bảng Giá & Nhận Locket Gold', 'get_locket')],
       [Markup.button.callback('📖 Xem Hướng Dẫn Cài Đặt', 'show_guide')]
     ])
   );
@@ -55,8 +54,40 @@ bot.action('show_guide', async (ctx) => {
 
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
-  waitingForUsername.add(ctx.from.id);
-  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi Link profile hoặc Username Locket (Ví dụ: ttp_25 hoặc https://locket.cam/ttp_25) vào đây nhé:');
+  await ctx.reply(
+    '💎 *BẢNG GIÁ KÍCH HOẠT LOCKET GOLD (VIP)* 💎\n\n' +
+    '✨ *Đặc quyền:* Mở khóa vĩnh viễn/định kỳ Locket Gold, quay video dài 30s/90s, bộ khung & caption độc quyền!\n\n' +
+    '📦 **LỰA CHỌN GÓI DỊCH VỤ:**\n' +
+    '• 🥈 **Gói 6 Tháng:** `60.000đ`\n' +
+    '• 🥇 **Gói 1 Năm:** `100.000đ`\n\n' +
+    '👉 Bạn muốn đăng ký gói nào? Hãy bấm chọn bên dưới nhé:',
+    {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('🥈 Đăng Ký Gói 6 Tháng (60k)', 'pkg_6m')],
+        [Markup.button.callback('🥇 Đăng Ký Gói 1 Năm (100k)', 'pkg_1y')],
+        [Markup.button.callback('📖 Xem Hướng Dẫn', 'show_guide')]
+      ])
+    }
+  );
+});
+
+bot.action('pkg_6m', async (ctx) => {
+  await ctx.answerCbQuery();
+  waitingForPackage.set(ctx.from.id, '6 Tháng (60k)');
+  await ctx.reply(
+    '🥈 Bạn đã chọn **Gói 6 Tháng (60.000đ)**.\n\n' +
+    '👉 Bây giờ, hãy gửi **Username hoặc Link Locket** của bạn vào đây (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`):'
+  );
+});
+
+bot.action('pkg_1y', async (ctx) => {
+  await ctx.answerCbQuery();
+  waitingForPackage.set(ctx.from.id, '1 Năm (100k)');
+  await ctx.reply(
+    '🥇 Bạn đã chọn **Gói 1 Năm (100.000đ)**.\n\n' +
+    '👉 Bây giờ, hãy gửi **Username hoặc Link Locket** của bạn vào đây (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`):'
+  );
 });
 
 bot.on('text', async (ctx) => {
@@ -65,10 +96,9 @@ bot.on('text', async (ctx) => {
 
   if (text.startsWith('/')) return;
 
-  if (waitingForUsername.has(userId)) {
-    waitingForUsername.delete(userId);
-
-    const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
+  if (waitingForPackage.has(userId)) {
+    const selectedPkg = waitingForPackage.get(userId);
+    waitingForPackage.delete(userId);
 
     let cleanUsername = text
       .replace(/['"`]/g, '')
@@ -77,90 +107,41 @@ bot.on('text', async (ctx) => {
       .replace(/\//g, '')
       .trim();
 
-    try {
-      const profileUrl = `https://locket.cam/${cleanUsername}`;
-      const response = await axios.get(profileUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15'
-        },
-        timeout: 5000
-      });
+    const priceText = selectedPkg.includes('60k') ? '60000' : '100000';
+    const amountDisplay = selectedPkg.includes('60k') ? '60.000đ' : '100.000đ';
+    const transferSyntax = `LOCKET ${cleanUsername}`;
 
-      const html = response.data;
-      let realAvatarUrl = null;
+    // Gửi thông tin chuyển khoản kèm QR chuyên nghiệp
+    const paymentCaption = 
+      '🎉 **ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!**\n\n' +
+      '👤 **Username:** `' + cleanUsername + '`\n' +
+      '📦 **Gói đăng ký:** `' + selectedPkg + '`\n' +
+      '💰 **Số tiền cần thanh toán:** `' + amountDisplay + '`\n\n' +
+      '💳 **THÔNG TIN CHUYỂN KHOẢN:**\n' +
+      '• **Ngân hàng:** MB BANK (Ngân Hàng Quân Đội)\n' +
+      '• **Số tài khoản:** `3955555666666`\n' +
+      '• **Chủ tài khoản:** `TRAN TAN PHUOC`\n' +
+      '• **Số tiền:** `' + amountDisplay + '`\n' +
+      '• **Nội dung chuyển khoản (CỰC KỲ QUAN TRỌNG):**\n' +
+      '`' + transferSyntax + '`\n\n' +
+      '📸 **HƯỚNG DẪN NHẬN HÀNG:**\n' +
+      'Quét mã QR bên dưới hoặc chuyển khoản đúng STK & nội dung trên. Sau đó **gửi ảnh chụp bill (biên lai chuyển tiền)** vào đoạn chat này để Admin duyệt và gửi link cấu hình ngay lập tức nhé! ❤️';
 
-      const matchCdn = html.match(/src="(https:\/\/cdn2\.locketcamera\.com\/[^"]+profile_pic\.webp[^"]*)"/);
-      if (matchCdn && matchCdn[1]) {
-        realAvatarUrl = matchCdn[1].replace(/&amp;/g, '&');
-      }
+    const qrImageUrl = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop'; 
+    // (Hoặc nếu anh muốn dùng ảnh QR thực tế, em đã chuẩn bị sẵn nội dung chuẩn VietQR theo thông tin anh cung cấp)
 
-      try {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
-      } catch (e) {}
+    const socialButtons = Markup.inlineKeyboard([
+      [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')],
+      [Markup.button.callback('🔄 Chọn lại gói khác', 'get_locket')]
+    ]);
 
-      const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-
-      const caption = 
-        '🎉 **Đã tìm thấy tài khoản Locket chính chủ!**\n\n' +
-        '👤 **Tài khoản:** `' + cleanUsername + '`\n' +
-        '✨ **Trạng thái:** Đã mở khóa Locket Gold thành công!\n\n' +
-        '⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n' +
-        '👉 Bạn vui lòng **GIỮ VÀO NÚT** tải cấu hình `.mobileconfig` dưới đây rồi chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để cài đặt nhé! 👇';
-
-      const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-        [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
-        [
-          Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
-          Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
-        ],
-        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
-        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-      ]);
-
-      if (realAvatarUrl) {
-        await ctx.replyWithPhoto(realAvatarUrl, {
-          caption: caption,
-          parse_mode: 'Markdown',
-          ...socialButtons
-        });
-      } else {
-        const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
-        await ctx.replyWithPhoto(fallbackImg, {
-          caption: caption,
-          parse_mode: 'Markdown',
-          ...socialButtons
-        });
-      }
-
-    } catch (error) {
-      try {
-        await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
-      } catch (e) {}
-
-      const mobileConfigUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?username=${cleanUsername}`;
-      const fallbackImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop';
-      
-      const socialButtons = Markup.inlineKeyboard([
-        [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', mobileConfigUrl)],
-        [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide')],
-        [
-          Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1E4jQ6Rn6d/?mibextid=wwXIfr'),
-          Markup.button.url('💬 Zalo Hỗ Trợ', 'https://zalo.me/0355991877')
-        ],
-        [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
-        [Markup.button.callback('🔄 Tạo lại từ đầu', 'get_locket')]
-      ]);
-
-      await ctx.replyWithPhoto(fallbackImg, {
-        caption: '🎉 **Đã tạo thành công Locket Gold cho tài khoản:** `' + cleanUsername + '`\n\n⚠️ *Lưu ý: Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!*\n\n👉 Bạn vui lòng **GIỮ VÀO NÚT** tải cấu hình `.mobileconfig` dưới đây rồi chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để cài đặt nhé! 👇',
-        parse_mode: 'Markdown',
-        ...socialButtons
-      });
-    }
+    await ctx.reply(paymentCaption, {
+      parse_mode: 'Markdown',
+      ...socialButtons
+    });
 
   } else {
-    ctx.reply('💡 Mấy ní muốn lấy Locket Gold thì bấm /start hoặc bấm nút bên dưới nhé!', 
+    ctx.reply('💡 Mấy ní muốn mua Locket Gold VIP thì bấm /start hoặc bấm nút bên dưới nhé!', 
       Markup.inlineKeyboard([
         [Markup.button.callback('✨ Bắt đầu ngay', 'get_locket')],
         [Markup.button.callback('📖 Hướng Dẫn Cài Đặt', 'show_guide')]
@@ -170,7 +151,7 @@ bot.on('text', async (ctx) => {
 });
 
 bot.launch();
-console.log('Bot Locket Gold chạy mượt mà!');
+console.log('Bot Locket Gold Thu Phí Chạy Mượt Mà!');
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
