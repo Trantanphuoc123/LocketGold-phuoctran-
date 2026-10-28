@@ -196,7 +196,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// Hàm chung xử lý chọn gói & tự hủy sau 3 phút
+// Hàm chung xử lý chọn gói & tự hủy sau 3 phút (Sử dụng img.vietqr.io chuẩn để tự động điền số tiền và nội dung chuyển khoản)
 async function handlePackageSelection(ctx, amount, pkgName) {
   await ctx.answerCbQuery();
   try { await ctx.deleteMessage(); } catch (e) {}
@@ -210,7 +210,9 @@ async function handlePackageSelection(ctx, amount, pkgName) {
   userSession.set(userId, session);
 
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=${amount}&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
+  
+  // Dùng chuẩn api/img.vietqr.io để khi quét mã QR bằng app ngân hàng sẽ tự động điền số tiền và nội dung chuyển khoản chính xác 100%
+  const qrImageUrl = `https://img.vietqr.io/image/MB-3955555666666-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferSyntax)}&accountName=TRAN%20TAN%20PHUOC`;
 
   const paymentCaption = 
     `💳 <b>THANH TOÁN UP LOCKET GOLD (${pkgName.toUpperCase()})</b>\n` +
@@ -342,7 +344,6 @@ bot.on('photo', async (ctx) => {
       { parse_mode: 'HTML' }
     );
 
-    // Lưu lại ID tin nhắn "Đã nhận được ảnh biên lai" của khách, CÒN BILL CỦA ADMIN THÌ GIỮ NGUYÊN (không xóa adminMsgId trong lúc duyệt)
     pendingOrders.set(orderId, { 
       userId, 
       username, 
@@ -370,15 +371,12 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
   const { userId, username, pkg, uid, customerNoticeMsgId, adminMsgId } = order;
 
   try {
-    // 1. Chỉ tự động xóa dòng "⏳ Đã nhận được ảnh biên lai của bạn!" ở phía khách hàng
     if (customerNoticeMsgId) {
       try {
         await ctx.telegram.deleteMessage(userId, customerNoticeMsgId);
       } catch (e) {}
     }
 
-    // 2. GIỮ NGUYÊN HÌNH BILL BÊN ADMIN (KHÔNG XÓA ADMIN MESSAGE ĐỂ ANH XEM LẠI LỊCH SỬ BILL)
-    // Chỉ cập nhật trạng thái trên ảnh bill của admin thành "ĐÃ DUYỆT ĐƠN" cho gọn
     if (adminMsgId) {
       try {
         await ctx.editMessageCaption(
@@ -405,7 +403,6 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
       [Markup.button.callback('🔄 Tạo lại từ đầu', 'start_prompt')]
     ]);
 
-    // Gửi thông báo thành công kèm nút tải cấu hình cho khách
     await ctx.telegram.sendMessage(userId, successCaption, {
       parse_mode: 'HTML',
       ...successMarkup
@@ -427,11 +424,9 @@ bot.action(/^reject_(\d+)$/, async (ctx) => {
   if (order) {
     const { userId, customerNoticeMsgId, adminMsgId } = order;
     
-    // Xóa thông báo chờ của khách
     if (customerNoticeMsgId) {
       try { await ctx.telegram.deleteMessage(userId, customerNoticeMsgId); } catch (e) {}
     }
-    // Cập nhật trạng thái từ chối trên ảnh bill của admin
     if (adminMsgId) {
       try {
         await ctx.editMessageCaption(
