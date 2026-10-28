@@ -95,7 +95,6 @@ bot.on('text', async (ctx) => {
     if (text.startsWith('/')) return;
 
     if (!waitingForPackage.has(userId)) {
-      // Nếu session mất (do bot vừa restart trên Render), tự động gợi ý chọn lại gói thay vì đứng im không phản hồi
       return ctx.reply(
         '⚠️ Phiên làm việc đã hết hạn hoặc bot vừa khởi động lại. Mấy ní vui lòng bấm nút bên dưới để chọn lại gói giúp anh nhé! 👇',
         Markup.inlineKeyboard([
@@ -124,33 +123,18 @@ bot.on('text', async (ctx) => {
     const qrImageUrl = `https://img.vietqr.io/image/MB-3955555666666-compact2.png?amount=${pkgInfo.amount}&addInfo=${encodeURIComponent(transferSyntax)}&accountName=${encodeURIComponent('TRAN TAN PHUOC')}`;
 
     const paymentCaption = 
-      '🎉 *ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!*
-
-' +
-      '👤 *Username:* `' + cleanUsername + '`
-' +
-      '📦 *Gói đăng ký:* `' + pkgInfo.name + '`
-' +
-      '💰 *Số tiền cần thanh toán:* `' + pkgInfo.display + '`
-
-' +
-      '💳 *THÔNG TIN CHUYỂN KHOẢN:*
-' +
-      '• *Ngân hàng:* MB BANK (Ngân Hàng Quân Đội)
-' +
-      '• *Số tài khoản:* `3955555666666`
-' +
-      '• *Chủ tài khoản:* `TRAN TAN PHUOC`
-' +
-      '• *Số tiền:* `' + pkgInfo.display + '`
-' +
-      '• *Nội dung chuyển khoản (BẮT BUỘC ĐÚNG):*
-' +
-      '`' + transferSyntax + '`
-
-' +
-      '📸 *HƯỚNG DẪN NHÂN HÀNG:*
-' +
+      '🎉 *ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!*\n\n' +
+      '👤 *Username:* `' + cleanUsername + '`\n' +
+      '📦 *Gói đăng ký:* `' + pkgInfo.name + '`\n' +
+      '💰 *Số tiền cần thanh toán:* `' + pkgInfo.display + '`\n\n' +
+      '💳 *THÔNG TIN CHUYỂN KHOẢN:*\n' +
+      '• *Ngân hàng:* MB BANK (Ngân Hàng Quân Đội)\n' +
+      '• *Số tài khoản:* `3955555666666`\n' +
+      '• *Chủ tài khoản:* `TRAN TAN PHUOC`\n' +
+      '• *Số tiền:* `' + pkgInfo.display + '`\n' +
+      '• *Nội dung chuyển khoản (BẮT BUỘC ĐÚNG):*\n' +
+      '`' + transferSyntax + '`\n\n' +
+      '📸 *HƯỚNG DẪN NHÂN HÀNG:*\n' +
       'Quét mã QR trên ảnh hoặc chuyển khoản đúng STK & nội dung. Sau đó *gửi ảnh chụp bill (biên lai chuyển tiền)* vào đây để Admin duyệt ngay lập tức nhé! ❤️';
 
     const socialButtons = Markup.inlineKeyboard([
@@ -169,10 +153,6 @@ bot.on('text', async (ctx) => {
     ctx.reply('⚠️ Đã xảy ra lỗi nhỏ, mấy ní vui lòng bấm /start để thao tác lại từ đầu giúp anh nhé!');
   }
 });
-
-bot.issueError = (err) => {
-  console.error('Telegram bot error:', err);
-};
 
 bot.launch();
 console.log('Bot Locket Gold Thu Phí Chạy Mượt Mà!');
