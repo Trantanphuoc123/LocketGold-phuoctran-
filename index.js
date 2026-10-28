@@ -215,6 +215,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
   userSession.set(userId, session);
 
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
+  // Hiển thị ảnh QR trực tiếp chuẩn VietQR
   const qrImageUrl = `https://api.vietqr.io/image/3955555666666-compact2.jpg?accountName=TRAN%20TAN%20PHUOC&amount=${amount}&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
