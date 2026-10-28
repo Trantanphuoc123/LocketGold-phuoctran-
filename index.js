@@ -13,6 +13,7 @@ http.createServer((req, res) => {
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const waitingForPackage = new Map();
 
+// Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
   '💛 <b>ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA</b> 💛\n\n' +
   '1️⃣ <b>Tải & Mở Cấu Hình Trên Safari</b>\n' +
@@ -126,7 +127,9 @@ bot.on('text', async (ctx) => {
     }
 
     const transferSyntax = `LOCKET ${cleanUsername}`;
-    const qrImageUrl = `https://img.vietqr.io/image/MB-3955555666666-compact2.png?amount=${pkgInfo.amount}&addInfo=${encodeURIComponent(transferSyntax)}&accountName=${encodeURIComponent('TRAN TAN PHUOC')}`;
+    
+    // Sử dụng đúng chuẩn link QR từ vietqr.app theo yêu cầu của anh
+    const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=${pkgInfo.amount}&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
 
     const paymentCaption = 
       '🎉 <b>ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!</b>\n\n' +
