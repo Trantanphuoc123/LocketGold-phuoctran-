@@ -196,7 +196,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// Hàm chung xử lý chọn gói & tự hủy sau 3 phút (Bảo đảm không bị lỗi sập bằng try/catch)
+// Hàm chung xử lý chọn gói & tự hủy sau 3 phút
 async function handlePackageSelection(ctx, amount, pkgName) {
   try {
     await ctx.answerCbQuery();
@@ -215,7 +215,8 @@ async function handlePackageSelection(ctx, amount, pkgName) {
   userSession.set(userId, session);
 
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  const qrImageUrl = `https://img.vietqr.io/image/MB-3955555666666-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferSyntax)}&accountName=TRAN%20TAN%20PHUOC`;
+  // Sử dụng chuẩn api.vietqr.io để hiển thị thẳng ảnh QR lên chat và tự động điền số tiền, nội dung
+  const qrImageUrl = `https://api.vietqr.io/image/3955555666666-compact2.jpg?accountName=TRAN%20TAN%20PHUOC&amount=${amount}&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
     `💳 <b>THANH TOÁN UP LOCKET GOLD (${pkgName.toUpperCase()})</b>\n` +
@@ -248,7 +249,6 @@ async function handlePackageSelection(ctx, amount, pkgName) {
     customerMsgId = sentMsg.message_id;
   } catch (err) {
     console.log('Lỗi gửi ảnh QR trực tiếp, gửi fallback text:', err);
-    // Fallback: nếu lỗi tải ảnh QR, gửi tin nhắn văn bản kèm link QR trực tiếp để không bị kẹt
     const sentMsg = await ctx.reply(
       paymentCaption + '\n\n🔗 <a href="' + qrImageUrl + '">Bấm vào đây để mở mã QR chuyển khoản</a>', 
       { parse_mode: 'HTML', ...paymentMarkup, disable_web_page_preview: false }
