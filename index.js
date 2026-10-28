@@ -11,7 +11,8 @@ http.createServer((req, res) => {
   console.log(`Server is listening on port ${PORT}`);
 });
 
-const bot = new Telegraf('8947538704:AAGKLE6fNptqJEMjLDlsBhoDhDASlRjNWH4');
+// Đã giấu token vào biến môi trường bảo mật tuyệt đối
+const bot = new Telegraf(process.env.BOT_TOKEN);
 const waitingForUsername = new Set();
 
 // Nội dung hướng dẫn cài đặt chuẩn
