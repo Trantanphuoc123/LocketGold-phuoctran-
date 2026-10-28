@@ -11,7 +11,7 @@ http.createServer((req, res) => {
   console.log(`Server is listening on port ${PORT}`);
 });
 
-const bot = new Telegraf('8947538704:AAGKLE6fNptqJEMjLDIsBhoDhDASlRjNWH4');
+const bot = new Telegraf('8947538704:AAGKLE6fNptqJEMjLDlsBhoDhDASlRjNWH4');
 const waitingForUsername = new Set();
 
 // Nội dung hướng dẫn cài đặt chuẩn
