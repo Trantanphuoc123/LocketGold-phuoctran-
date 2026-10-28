@@ -11,7 +11,11 @@ http.createServer((req, res) => {
 });
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const userSession = new Map(); // userId -> { cleanUsername, displayName, uid, avatarUrl }
+const userSession = new Map(); // userId -> { cleanUsername, displayName, uid, avatarUrl, selectedPkg, orderId }
+const pendingOrders = new Map(); // orderId -> { userId, username, package }
+
+// ID của Admin (anh Phước) - có thể cấu hình qua biến môi trường hoặc tự động nhận diện
+const ADMIN_ID = process.env.ADMIN_ID ? Number(process.env.ADMIN_ID) : null;
 
 // Hướng dẫn cài đặt
 const guideText = 
@@ -150,7 +154,7 @@ bot.on('text', async (ctx) => {
       parse_mode: 'HTML'
     });
 
-    // Gửi tiếp menu tính năng với phần Quay video được trình bày rõ ràng, dễ nhìn
+    // Gửi tiếp menu tính năng
     const featuresText = 
       '✅ <b>Quay video 30 giây / 1 phút có âm thanh</b>\n' +
       '✅ <b>Up ảnh/video có âm thanh từ thư viện</b>\n' +
@@ -181,17 +185,17 @@ bot.on('text', async (ctx) => {
 // Xử lý khi khách chọn gói 6 tháng
 bot.action('pkg_6m', async (ctx) => {
   await ctx.answerCbQuery();
-  
-  try {
-    await ctx.deleteMessage();
-  } catch (e) {}
+  try { await ctx.deleteMessage(); } catch (e) {}
 
   const userId = ctx.from.id;
   const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
   
   const orderId = Math.floor(10000000 + Math.random() * 90000000);
+  session.orderId = orderId;
+  session.selectedPkg = '6 Tháng (60.000đ)';
+  userSession.set(userId, session);
+
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  
   const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=60000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
@@ -225,17 +229,17 @@ bot.action('pkg_6m', async (ctx) => {
 // Xử lý khi khách chọn gói 1 năm
 bot.action('pkg_1y', async (ctx) => {
   await ctx.answerCbQuery();
-  
-  try {
-    await ctx.deleteMessage();
-  } catch (e) {}
+  try { await ctx.deleteMessage(); } catch (e) {}
 
   const userId = ctx.from.id;
   const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
   
   const orderId = Math.floor(10000000 + Math.random() * 90000000);
+  session.orderId = orderId;
+  session.selectedPkg = '1 Năm (100.000đ)';
+  userSession.set(userId, session);
+
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  
   const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=100000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
@@ -268,11 +272,217 @@ bot.action('pkg_1y', async (ctx) => {
 
 bot.action('get_back', async (ctx) => {
   await ctx.answerCbQuery();
-  try {
-    await ctx.deleteMessage();
-  } catch (e) {}
-  
+  try { await ctx.deleteMessage(); } catch (e) {}
   await ctx.reply('👉 Vui lòng gửi lại <b>Link hoặc Username Locket</b> của bạn để tiếp tục chọn gói nhé:', { parse_mode: 'HTML' });
+});
+
+// Xử lý khi khách gửi ảnh chụp bill thanh toán
+bot.on('photo', async (ctx) => {
+  try {
+    const userId = ctx.from.id;
+    const session = userSession.get(userId);
+
+    // Tự động xóa tin nhắn ảnh bill của khách để khung chat gọn gàng
+    try { await ctx.deleteMessage(); } catch (e) {}
+
+    const username = session ? session.cleanUsername : 'Chưa rõ';
+    const pkg = session && session.selectedPkg ? session.selectedPkg : 'Không rõ gói';
+    const orderId = session && session.orderId ? session.orderId : Math.floor(10000000 + Math.random() * 90000000);
+
+    // Lưu thông tin đơn chờ duyệt
+    pendingOrders.set(orderId, { userId, username, pkg });
+
+    // Lấy file_id của ảnh bill để gửi về cho Admin
+    const photos = ctx.message.photo;
+    const photoFileId = photos[photos.length - 1].file_id;
+
+    // Xác định ID Admin (nếu chưa set biến môi trường, mặc định gửi cho chính người gửi nếu đang test, hoặc cấu hình ADMIN_ID)
+    const adminChatId = ADMIN_ID || userId; // Khi test 1 mình, bot sẽ gửi cho chính anh
+
+    const adminCaption = 
+      '🔔 <b>CÓ ĐƠN THANH TOÁN MỚI CẦN DUYỆT!</b>\n' +
+      '──────────────────────────────\n' +
+      '👤 <b>Khách hàng:</b> @' + (ctx.from.username || ctx.from.first_name) + '\n' +
+      '👤 <b>Username Locket:</b> ' + username + '\n' +
+      '📦 <b>Gói đăng ký:</b> ' + pkg + '\n' +
+      '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
+      '👉 <i>Bấm nút bên dưới để duyệt hoặc từ chối đơn hàng này:</i>';
+
+    const adminMarkup = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ Duyệt & Gửi Cấu Hình', `approve_${orderId}`),
+        Markup.button.callback('❌ Từ chối', `reject_${orderId}`)
+      ]
+    ]);
+
+    await ctx.telegram.sendPhoto(adminChatId, photoFileId, {
+      caption: adminCaption,
+      parse_mode: 'HTML',
+      ...adminMarkup
+    });
+
+    // Thông báo cho khách biết đã nhận bill và đang chờ Admin duyệt
+    await ctx.reply(
+      '⏳ <b>Đã nhận được ảnh biên lai của bạn!</b>\nAdmin đang kiểm tra giao dịch và sẽ gửi cấu hình Locket Gold cho bạn trong giây lát. Bạn chờ chút xíu nhé! ❤️',
+      { parse_mode: 'HTML' }
+    );
+
+  } catch (err) {
+    console.error('Lỗi xử lý ảnh bill:', err);
+  }
+});
+
+// Admin bấm nút Duyệt đơn
+bot.action(/^approve_(\d+)$/, async (ctx) => {
+  await ctx.answerCbQuery('Đang tiến hành duyệt đơn và gửi cấu hình...');
+  const orderId = Number(ctx.match[1]);
+  const order = pendingOrders.get(orderId);
+
+  if (!order) {
+    return ctx.reply('⚠️ Đơn hàng này không tồn tại hoặc đã được xử lý trước đó.');
+  }
+
+  const { userId, username, pkg } = order;
+
+  try {
+    // 1. Gửi file cấu hình (.mobileconfig) trực tiếp cho khách hàng
+    const mobileConfigXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Locket Gold + Spotify + YouTube VIP (ttp_25)</string>
+    <key>PayloadDescription</key>
+    <string>Cau hinh 3-in-1: Locket Gold (2099) + Spotify Premium + YouTube Premium (PiP/Background/No Ads) - @ttp_25</string>
+    <key>PayloadIdentifier</key>
+    <string>com.locketgold.profile</string>
+    <key>PayloadOrganization</key>
+    <string>Locket Gold VIP</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>9ddc879a-abb8-4bdb-9984-c53a273581e8</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.security.root</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.locketgold.rootca</string>
+            <key>PayloadUUID</key>
+            <string>bb0640e5-040b-4ecc-9f5c-53157883582a</string>
+            <key>PayloadDisplayName</key>
+            <string>Locket Gold Root CA</string>
+            <key>PayloadDescription</key>
+            <string>Chung chi goc Locket Gold Root CA</string>
+            <key>PayloadContent</key>
+            <data>
+MIIDejCCAmKgAwIBAgIJAPs4V/Q5JaaQMA0GCSqGSIb3DQEBCwUAMEoxCzAJBgNVBAYTAlVTMR0wGwYDVQQKDBRMb2NrZXQgR29sZCBVbmxvY2tlcjEcMBoGA1UEAwwTTG9ja2V0IEdvbGQgUm9vdCBDQTAeFw0yNjEwMTkwNjU4MDJaFw0zNjEwMTYwNjU4MDJaMEoxCzAJBgNVBAYTAlVTMR0wGwYDVQQKDBRMb2NrZXQgR29sZCBVbmxvY2tlcjEcMBoGA1UEAwwTTG9ja2V0IEdvbGQgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKDRQdnLjyznevdF+p8czU7BiK+V3AlNV0kdijJ1guFtAWR8H4Gp/n9bYDReYgG1T1wULP/Ycin6jmEJgyHj7+Sdf+aWbdbSH9sJ88eNUSKBkQj7pM1FEzmtpn2sYYRBlpHyPq+DSN7F1SIxQjLxkcn/o2R4TBub/yAGie8t0wUiplU3ERVPdOXXxp4zyVCUgsNqlPpPbu9bWvAPj/esglBfXsoxGs+RVWSpRBIZCu1qUh/M42+pfiHMBnbtEHV2b3UPp9nrMG0jQfgILSGeBNYen1zp/kbQrn1yDExPL/JYTJrvUxLrDT2F6eTHE4mM64MrlcIWrM5VPr3jZ1gliW0CAwEAAaNjMGEwHQYDVR0OBBYEFAYsC40T2bhGa93UwuIsCKQJpuolMB8GA1UdIwQYMBaAFAYsC40T2bhGa93UwuIsCKQJpuolMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgGGMA0GCSqGSIb3DQEBCwUAA4IBAQASWfR8qZg2r0cWCQZ3BAKz05QQyU4s3mkb5VRWSDjCzwZjB6vzSZpa0uBzHK78iqDsBO5B6nYLGW/KByf9JTASLVUv5biOCiuJ8feFyLIijbmQo2ZrUFCxc9W9fl66VC5CuCTLwMxzVqLPe0TppTSHTjhIKJAtvOKyn4z8AmRKuaYZmQ4jWUH+VTp6RLmWnXe3Q0XshC/sDuBUA4TIYKq/7XlPGHWKqGE0EILXOQ8honADNhMTM8DWBrFbgqOU5b0l/xWZuilmEHnXc2yO9d1/74DTbxgSlpC6OtwOg1wQR1xN4hA1mLUu3kdnJRBTMZ0TaoEqTMWcF8QRHfLXal81
+            </data>
+        </dict>
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.dnsSettings.managed</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.locketgold.dns</string>
+            <key>PayloadUUID</key>
+            <string>2504b094-3aad-4998-a308-a23e7db9ffa4</string>
+            <key>PayloadDisplayName</key>
+            <string>Locket Gold + Spotify + YouTube Premium DNS</string>
+            <key>PayloadDescription</key>
+            <string>DNS-over-HTTPS Locket Gold VIP + Spotify Premium + YouTube Premium</string>
+            <key>DNSSettings</key>
+            <dict>
+                <key>DNSProtocol</key>
+                <string>HTTPS</string>
+                <key>ServerURL</key>
+                <string>https://160-191-242-70.sslip.io/dns-query/84cab5d42402</string>
+                <key>SupplementalMatchDomains</key>
+                <array>
+                    <string>api.revenuecat.com</string>
+                    <string>firebaseremoteconfig.googleapis.com</string>
+                    <string>spclient.wg.spotify.com</string>
+                    <string>wg.spotify.com</string>
+                    <string>apresolve.spotify.com</string>
+                    <string>gae2-spclient.spotify.com</string>
+                    <string>guc3-spclient.spotify.com</string>
+                    <string>gue1-spclient.spotify.com</string>
+                    <string>gew1-spclient.spotify.com</string>
+                    <string>guc3.spotify.com</string>
+                    <string>gue3.spotify.com</string>
+                    <string>gua3.spotify.com</string>
+                    <string>youtubei.googleapis.com</string>
+                    <string>googleads.g.doubleclick.net</string>
+                    <string>pagead2.googlesyndication.com</string>
+                    <string>static.doubleclick.net</string>
+                    <string>ad.youtube.com</string>
+                    <string>ads.youtube.com</string>
+                    <string>s0.2mdn.net</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>`;
+
+    const configBuffer = Buffer.from(mobileConfigXml, 'utf-8');
+
+    await ctx.telegram.sendDocument(userId, {
+      source: configBuffer,
+      filename: `LocketGold_${username}.mobileconfig`
+    }, {
+      caption: 
+        '🎉 <b>THANH TOÁN THÀNH CÔNG!</b> 🎉\n' +
+        '──────────────────────────────\n' +
+        '👤 <b>Tài khoản:</b> <code>' + username + '</code>\n' +
+        '📦 <b>Gói dịch vụ:</b> ' + pkg + '\n\n' +
+        '📥 <b>Đính kèm là file cấu hình Locket Gold VIP của bạn!</b>\n' +
+        '👉 Hãy ấn vào file bên trên, chọn mở bằng <b>Safari</b> và làm theo hướng dẫn cài đặt ở đầu bot nhé! Cảm ơn bạn đã ủng hộ shop! ❤️',
+      parse_mode: 'HTML'
+    });
+
+    // 2. Cập nhật lại tin nhắn của Admin thành đã duyệt
+    await ctx.editMessageCaption(
+      ctx.callbackQuery.message.caption + '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH THÀNH CÔNG!</b>',
+      { parse_mode: 'HTML' }
+    );
+
+    pendingOrders.delete(orderId);
+  } catch (err) {
+    console.error('Lỗi khi duyệt đơn:', err);
+    await ctx.reply('⚠️ Có lỗi xảy ra khi gửi file cấu hình cho khách.');
+  }
+});
+
+// Admin bấm nút Từ chối
+bot.action(/^reject_(\d+)$/, async (ctx) => {
+  await ctx.answerCbQuery('Đã từ chối đơn hàng.');
+  const orderId = Number(ctx.match[1]);
+  const order = pendingOrders.get(orderId);
+
+  if (order) {
+    try {
+      await ctx.telegram.sendMessage(
+        order.userId,
+        '❌ <b>Giao dịch của bạn không thành công hoặc chưa được xác nhận!</b>\nVui lòng kiểm tra lại số tiền hoặc nội dung chuyển khoản, hoặc liên hệ trực tiếp Admin để được hỗ trợ nhé.',
+        { parse_mode: 'HTML' }
+      );
+    } catch (e) {}
+    pendingOrders.delete(orderId);
+  }
+
+  await ctx.editMessageCaption(
+    ctx.callbackQuery.message.caption + '\n\n❌ <b>ĐÃ TỪ CHỐI ĐƠN HÀNG NÀY!</b>',
+    { parse_mode: 'HTML' }
+  );
 });
 
 bot.launch();
