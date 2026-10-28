@@ -12,7 +12,7 @@ http.createServer((req, res) => {
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const userSession = new Map(); // userId -> { cleanUsername, displayName, uid, avatarUrl, selectedPkg, orderId }
-const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid }
+const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid, customerMsgId, adminMsgId }
 
 // Cố định ID của Admin (anh Phước)
 const ADMIN_ID = 1402351028;
@@ -79,7 +79,6 @@ bot.on('text', async (ctx) => {
 
     if (text.startsWith('/')) return;
 
-    // Tự động xoá tin nhắn chứa link/username của khách gửi để làm sạch khung chat
     try {
       await ctx.deleteMessage();
     } catch (e) {}
@@ -97,7 +96,7 @@ bot.on('text', async (ctx) => {
 
     let avatarUrl = `https://api.dicebear.com/7.x/avataaars/png?seed=${cleanUsername}`;
     let displayName = cleanUsername;
-    let uid = '2dz10mKITDbSSWYDiPiHtWTM4S02'; // UID mô phỏng chuẩn
+    let uid = '2dz10mKITDbSSWYDiPiHtWTM4S02';
 
     try {
       const response = await axios.get(`https://locket.cam/${cleanUsername}`, {
@@ -126,7 +125,6 @@ bot.on('text', async (ctx) => {
       console.log('Không cào được profile Locket, dùng avatar tự động.');
     }
 
-    // Lưu session người dùng
     userSession.set(userId, { cleanUsername, displayName, uid, avatarUrl });
 
     const profileCaption = 
@@ -178,7 +176,8 @@ bot.on('text', async (ctx) => {
   }
 });
 
-bot.action('pkg_6m', async (ctx) => {
+// Hàm chung để xử lý hiển thị QR và tự động xóa sau 3 phút nếu không thanh toán
+async function handlePackageSelection(ctx, amount, pkgName) {
   await ctx.answerCbQuery();
   try { await ctx.deleteMessage(); } catch (e) {}
 
@@ -187,26 +186,26 @@ bot.action('pkg_6m', async (ctx) => {
   
   const orderId = Math.floor(10000000 + Math.random() * 90000000);
   session.orderId = orderId;
-  session.selectedPkg = '6 Tháng (60.000đ)';
+  session.selectedPkg = pkgName;
   userSession.set(userId, session);
 
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=60000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
+  const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=${amount}&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
-    '💳 <b>THANH TOÁN UP LOCKET GOLD (6 THÁNG)</b>\n' +
+    `💳 <b>THANH TOÁN UP LOCKET GOLD (${pkgName.toUpperCase()})</b>\n` +
     '──────────────────────────────\n' +
     '👤 <b>Username:</b> ' + session.cleanUsername + '\n' +
     '🆔 <b>UID:</b>\n' +
     '<code>' + session.uid + '</code>\n' +
-    '📦 <b>Gói:</b> 6 Tháng\n' +
-    '💰 <b>Số tiền:</b> <code>60.000 VNĐ</code>\n' +
+    '📦 <b>Gói:</b> ' + pkgName + '\n' +
+    '💰 <b>Số tiền:</b> <code>' + (amount === 60000 ? '60.000 VNĐ' : '100.000 VNĐ') + '</code>\n' +
     '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
     '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội\n' +
     '🔢 <b>Số TK:</b> <code>3955555666666</code>\n' +
     '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>\n' +
     '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>\n\n' +
-    '📸 <b>HƯỚNG DẪN:</b> Quét mã QR bên trên hoặc chuyển khoản đúng số tiền & đúng nội dung. Sau đó <b>gửi ảnh chụp bill</b> vào đây để Admin duyệt ngay nhé! ❤️';
+    '⏳ <b>LƯU Ý:</b> Mã QR này sẽ <b>tự động hủy sau 3 phút</b> nếu không thanh toán! Sau khi chuyển khoản, hãy <b>gửi ảnh chụp bill</b> vào đây nhé! ❤️';
 
   const paymentMarkup = Markup.inlineKeyboard([
     [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
@@ -214,54 +213,57 @@ bot.action('pkg_6m', async (ctx) => {
     [Markup.button.url('✈️ Telegram Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
   ]);
 
-  await ctx.replyWithPhoto({ url: qrImageUrl }, {
+  // Gửi QR cho khách
+  const sentMsg = await ctx.replyWithPhoto({ url: qrImageUrl }, {
     caption: paymentCaption,
     parse_mode: 'HTML',
     ...paymentMarkup
   });
+
+  const customerMsgId = sentMsg.message_id;
+
+  // Gửi thông báo cho Admin (để Admin có sẵn đơn chờ, nhưng sẽ tự hủy cùng lúc nếu quá 3 phút)
+  const adminCaption = 
+    '🔔 <b>CÓ ĐƠN KHỞI TẠO THANH TOÁN (CHỜ BILL)!</b>\n' +
+    '──────────────────────────────\n' +
+    '👤 <b>Khách hàng:</b> @' + (ctx.from.username || ctx.from.first_name || 'Khách') + ' (ID: <code>' + userId + '</code>)\n' +
+    '👤 <b>Username Locket:</b> ' + session.cleanUsername + '\n' +
+    '📦 <b>Gói:</b> ' + pkgName + '\n' +
+    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
+    '⏳ <i>Đơn hàng đang chờ khách chuyển khoản và gửi bill (Tự hủy sau 3 phút nếu không có giao dịch)...</i>';
+
+  const adminMsg = await ctx.telegram.sendMessage(ADMIN_ID, adminCaption, { parse_mode: 'HTML' });
+  const adminMsgId = adminMsg.message_id;
+
+  // Lưu vào pendingOrders
+  pendingOrders.set(orderId, { userId, username: session.cleanUsername, pkg: pkgName, uid: session.uid, customerMsgId, adminMsgId });
+
+  // THIẾT LẬP HẸN GIỜ TỰ ĐỘNG XÓA SAU 3 PHÚT (180,000 ms)
+  setTimeout(async () => {
+    const order = pendingOrders.get(orderId);
+    if (order) {
+      // Xóa tin nhắn QR của khách
+      try {
+        await ctx.telegram.deleteMessage(userId, customerMsgId);
+        await ctx.telegram.sendMessage(userId, '⏰ <b>Mã thanh toán QR đã hết hạn (sau 3 phút)!</b> Vui lòng gửi lại link Locket nếu bạn vẫn muốn tiếp tục mua nhé.', { parse_mode: 'HTML' });
+      } catch (e) {}
+
+      // Xóa tin nhắn thông báo của Admin
+      try {
+        await ctx.telegram.deleteMessage(ADMIN_ID, adminMsgId);
+      } catch (e) {}
+
+      pendingOrders.delete(orderId);
+    }
+  }, 3 * 60 * 1000);
+}
+
+bot.action('pkg_6m', async (ctx) => {
+  await handlePackageSelection(ctx, 60000, '6 Tháng (60.000đ)');
 });
 
 bot.action('pkg_1y', async (ctx) => {
-  await ctx.answerCbQuery();
-  try { await ctx.deleteMessage(); } catch (e) {}
-
-  const userId = ctx.from.id;
-  const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
-  
-  const orderId = Math.floor(10000000 + Math.random() * 90000000);
-  session.orderId = orderId;
-  session.selectedPkg = '1 Năm (100.000đ)';
-  userSession.set(userId, session);
-
-  const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=100000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
-
-  const paymentCaption = 
-    '💳 <b>THANH TOÁN UP LOCKET GOLD (1 NĂM)</b>\n' +
-    '──────────────────────────────\n' +
-    '👤 <b>Username:</b> ' + session.cleanUsername + '\n' +
-    '🆔 <b>UID:</b>\n' +
-    '<code>' + session.uid + '</code>\n' +
-    '📦 <b>Gói:</b> 1 Năm\n' +
-    '💰 <b>Số tiền:</b> <code>100.000 VNĐ</code>\n' +
-    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
-    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội\n' +
-    '🔢 <b>Số TK:</b> <code>3955555666666</code>\n' +
-    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>\n' +
-    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>\n\n' +
-    '📸 <b>HƯỚNG DẪN:</b> Quét mã QR bên trên hoặc chuyển khoản đúng số tiền & đúng nội dung. Sau đó <b>gửi ảnh chụp bill</b> vào đây để Admin duyệt ngay nhé! ❤️';
-
-  const paymentMarkup = Markup.inlineKeyboard([
-    [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
-    [Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'), Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')],
-    [Markup.button.url('✈️ Telegram Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
-  ]);
-
-  await ctx.replyWithPhoto({ url: qrImageUrl }, {
-    caption: paymentCaption,
-    parse_mode: 'HTML',
-    ...paymentMarkup
-  });
+  await handlePackageSelection(ctx, 100000, '1 Năm (100.000đ)');
 });
 
 bot.action('get_back', async (ctx) => {
@@ -276,7 +278,6 @@ bot.on('photo', async (ctx) => {
     const userId = ctx.from.id;
     const session = userSession.get(userId);
 
-    // Tự động xóa tin nhắn ảnh bill của khách để khung chat gọn gàng
     try { await ctx.deleteMessage(); } catch (e) {}
 
     const username = session ? session.cleanUsername : 'Chưa rõ';
@@ -284,14 +285,31 @@ bot.on('photo', async (ctx) => {
     const uid = session ? session.uid : '2dz10mKITDbSSWYDiPiHtWTM4S02';
     const orderId = session && session.orderId ? session.orderId : Math.floor(10000000 + Math.random() * 90000000);
 
-    // Lưu thông tin đơn chờ duyệt
+    // Tìm xem có order đang chờ nào của user này không để xóa tin nhắn chờ cũ của admin, thay bằng ảnh bill thật
+    let existingOrderId = null;
+    let oldAdminMsgId = null;
+    for (let [oid, ord] of pendingOrders.entries()) {
+      if (ord.userId === userId) {
+        existingOrderId = oid;
+        oldAdminMsgId = ord.adminMsgId;
+        pendingOrders.delete(oid);
+        break;
+      }
+    }
+
+    // Xóa tin nhắn thông báo chờ cũ bên Admin nếu có
+    if (oldAdminMsgId) {
+      try { await ctx.telegram.deleteMessage(ADMIN_ID, oldAdminMsgId); } catch (e) {}
+    }
+
+    // Lưu đơn mới có kèm bill chờ duyệt
     pendingOrders.set(orderId, { userId, username, pkg, uid });
 
     const photos = ctx.message.photo;
     const photoFileId = photos[photos.length - 1].file_id;
 
     const adminCaption = 
-      '🔔 <b>CÓ ĐƠN THANH TOÁN MỚI CẦN DUYỆT!</b>\n' +
+      '🔔 <b>CÓ ĐƠN THANH TOÁN MỚI (ĐÃ GỬI BILL)!</b>\n' +
       '──────────────────────────────\n' +
       '👤 <b>Khách hàng:</b> @' + (ctx.from.username || ctx.from.first_name || 'Khách') + ' (ID: <code>' + userId + '</code>)\n' +
       '👤 <b>Username Locket:</b> ' + username + '\n' +
@@ -306,14 +324,13 @@ bot.on('photo', async (ctx) => {
       ]
     ]);
 
-    // CHỈ GỬI VỀ ĐÚNG TELEGRAM ID CỦA ADMIN (ANH PHƯỚC)
+    // Gửi ảnh bill thật về cho Admin
     await ctx.telegram.sendPhoto(ADMIN_ID, photoFileId, {
       caption: adminCaption,
       parse_mode: 'HTML',
       ...adminMarkup
     });
 
-    // Thông báo riêng cho khách
     await ctx.reply(
       '⏳ <b>Đã nhận được ảnh biên lai của bạn!</b>\nAdmin đang kiểm tra giao dịch và sẽ gửi cấu hình Locket Gold cho bạn trong giây lát. Bạn chờ chút xíu nhé! ❤️',
       { parse_mode: 'HTML' }
@@ -337,7 +354,6 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
   const { userId, username, pkg, uid } = order;
 
   try {
-    // Tạo link cấu hình cá nhân hóa theo username và uid của khách
     const configUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?token=b68e2c860b21&uid=${uid}&username=${username}`;
 
     const successCaption = 
@@ -355,13 +371,11 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
       [Markup.button.callback('🔄 Tạo lại từ đầu', 'start_prompt')]
     ]);
 
-    // GỬI RIÊNG VỀ CHO KHÁCH HÀNG
     await ctx.telegram.sendMessage(userId, successCaption, {
       parse_mode: 'HTML',
       ...successMarkup
     });
 
-    // Cập nhật lại tin nhắn của Admin
     await ctx.editMessageCaption(
       ctx.callbackQuery.message.caption + '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH CHO KHÁCH THÀNH CÔNG!</b>',
       { parse_mode: 'HTML' }
