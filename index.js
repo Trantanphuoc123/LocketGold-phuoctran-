@@ -28,7 +28,11 @@ const guideText =
   '5️⃣ <b>Mở App & Tận Hưởng</b>\n' +
   'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu <b>Locket Gold</b>, quay video 30s/90s, bộ khung & caption độc quyền!';
 
-bot.start((ctx) => {
+bot.start(async (ctx) => {
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+  
   ctx.reply(
     '👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây để bắt đầu kiểm tra tài khoản nhé:',
     {
@@ -42,6 +46,10 @@ bot.start((ctx) => {
 
 bot.action('show_guide', async (ctx) => {
   await ctx.answerCbQuery();
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+  
   await ctx.reply(guideText, {
     parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
@@ -52,6 +60,10 @@ bot.action('show_guide', async (ctx) => {
 
 bot.action('start_prompt', async (ctx) => {
   await ctx.answerCbQuery();
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+  
   await ctx.reply('👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây nhé:', { parse_mode: 'HTML' });
 });
 
@@ -62,6 +74,11 @@ bot.on('text', async (ctx) => {
     const text = ctx.message.text.trim();
 
     if (text.startsWith('/')) return;
+
+    // Tự động xoá tin nhắn chứa link/username của khách gửi để làm sạch khung chat
+    try {
+      await ctx.deleteMessage();
+    } catch (e) {}
 
     let cleanUsername = text
       .replace(/['"`]/g, '')
@@ -133,9 +150,9 @@ bot.on('text', async (ctx) => {
       parse_mode: 'HTML'
     });
 
-    // Gửi tiếp menu tính năng và bảng giá
+    // Gửi tiếp menu tính năng với phần Quay video được trình bày rõ ràng, dễ nhìn
     const featuresText = 
-      '✅ <b>Quay video 30s có âm thanh</b>\n' +
+      '✅ <b>Quay video 30 giây / 1 phút có âm thanh</b>\n' +
       '✅ <b>Up ảnh/video có âm thanh từ thư viện</b>\n' +
       '✅ <b>Chế độ đăng riêng tư</b>\n' +
       '✅ <b>Toàn bộ Ghi chú, Caption màu hay ho đặc sắc</b>\n' +
@@ -164,6 +181,12 @@ bot.on('text', async (ctx) => {
 // Xử lý khi khách chọn gói 6 tháng
 bot.action('pkg_6m', async (ctx) => {
   await ctx.answerCbQuery();
+  
+  // Tự động xoá tin nhắn menu cũ khi khách bấm thanh toán để khung chat gọn gàng
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+
   const userId = ctx.from.id;
   const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
   
@@ -202,6 +225,12 @@ bot.action('pkg_6m', async (ctx) => {
 // Xử lý khi khách chọn gói 1 năm
 bot.action('pkg_1y', async (ctx) => {
   await ctx.answerCbQuery();
+  
+  // Tự động xoá tin nhắn menu cũ khi khách bấm thanh toán để khung chat gọn gàng
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+
   const userId = ctx.from.id;
   const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
   
@@ -239,6 +268,10 @@ bot.action('pkg_1y', async (ctx) => {
 
 bot.action('get_back', async (ctx) => {
   await ctx.answerCbQuery();
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+  
   await ctx.reply('👉 Vui lòng gửi lại <b>Link hoặc Username Locket</b> của bạn để tiếp tục chọn gói nhé:', { parse_mode: 'HTML' });
 });
 
