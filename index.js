@@ -74,13 +74,18 @@ bot.on('text', async (ctx) => {
       return ctx.reply('❌ Username không hợp lệ! Vui lòng nhập đúng Link hoặc Username Locket nhé.', { parse_mode: 'HTML' });
     }
 
-    // Cào thông tin từ trang Locket cá nhân
-    let avatarUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=500&auto=format&fit=crop';
+    // Cào thông tin từ trang Locket cá nhân với User-Agent giả lập trình duyệt
+    let avatarUrl = `https://api.dicebear.com/7.x/avataaars/png?seed=${cleanUsername}`;
     let displayName = cleanUsername;
     let uid = '2dz10mKITDbSSWYDiPiHtWTM4S02'; // UID mô phỏng chuẩn
 
     try {
-      const response = await axios.get(`https://locket.cam/${cleanUsername}`, { timeout: 4000 });
+      const response = await axios.get(`https://locket.cam/${cleanUsername}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+        },
+        timeout: 5000
+      });
       const html = response.data;
       
       const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
@@ -93,22 +98,30 @@ bot.on('text', async (ctx) => {
         displayName = titleMatch[1];
       }
     } catch (e) {
-      console.log('Không cào được profile Locket, dùng dữ liệu mặc định.');
+      console.log('Không cào được profile Locket, dùng avatar tự động.');
     }
 
     // Lưu session người dùng
     userSession.set(userId, { cleanUsername, displayName, uid, avatarUrl });
 
-    // Hiển thị Thông tin tài khoản Locket (giống Ảnh 1)
+    // Hiển thị Thông tin tài khoản Locket
     const profileCaption = 
-      '💛 <b>THÔNG TIN TÀI KHOẢN</b>\n' +
-      '<b>LOCKET</b>\n' +
-      '──────────────────────────────\n' +
-      '🖼️ <b>Tên:</b> 👻 🔥\n' +
-      '🪪 <b>Display Name:</b> ' + displayName + '\n' +
-      '👤 <b>Username:</b> ' + cleanUsername + '\n' +
-      '🆔 <b>UID:</b>\n' +
-      '<code>' + uid + '</code>\n' +
+      '💛 <b>THÔNG TIN TÀI KHOẢN</b>
+' +
+      '<b>LOCKET</b>
+' +
+      '──────────────────────────────
+' +
+      '🖼️ <b>Tên:</b> 👻 🔥
+' +
+      '🪪 <b>Display Name:</b> ' + displayName + '
+' +
+      '👤 <b>Username:</b> ' + cleanUsername + '
+' +
+      '🆔 <b>UID:</b>
+' +
+      '<code>' + uid + '</code>
+' +
       '👑 <b>Gold Status:</b> 🔒 <b>No Active</b>';
 
     const pricingMenuMarkup = Markup.inlineKeyboard([
@@ -117,27 +130,42 @@ bot.on('text', async (ctx) => {
       [Markup.button.callback('📖 Hướng dẫn cài đặt', 'show_guide')]
     ]);
 
-    // Gửi ảnh đại diện kèm thông tin tài khoản (Ảnh 1)
+    // Gửi ảnh đại diện kèm thông tin tài khoản
     await ctx.replyWithPhoto({ url: avatarUrl }, {
       caption: profileCaption,
       parse_mode: 'HTML'
     });
 
-    // Gửi tiếp menu tính năng và bảng giá (giống Ảnh 2)
+    // Gửi tiếp menu tính năng và bảng giá
     const featuresText = 
-      '✅ <b>Quay video 30s có âm thanh</b>\n' +
-      '✅ <b>Up ảnh/video có âm thanh từ thư viện</b>\n' +
-      '✅ <b>Chế độ đăng riêng tư</b>\n' +
-      '✅ <b>Toàn bộ Ghi chú, Caption màu hay ho đặc sắc</b>\n' +
-      '✅ <b>Và toàn bộ các tính năng Locket Gold khác...</b>\n' +
-      '✅ <b>Xóa app tải lại vẫn còn Gold</b>\n' +
-      '✅ <b>Đăng xuất ➔ đăng nhập lại vẫn còn Gold</b>\n' +
-      '✅ <b>Độ ổn định tuyệt đối, không bị rụng gold trong quá trình sử dụng</b>\n' +
-      '✅ <b>Bảo hành full thời gian sử dụng</b>\n' +
-      '🗣️ <i>Không có hiệu ứng huy hiệu Locket Gold ngoài profile nhưng full tính năng VIP!</i>\n\n' +
-      '💲 <b>Giá bán:</b>\n' +
-      '• <code>60.000 VNĐ / 6 Tháng</code> - Bảo hành full\n' +
-      '• <code>100.000 VNĐ / 1 Năm</code> - Bảo hành full\n\n' +
+      '✅ <b>Quay video 30s có âm thanh</b>
+' +
+      '✅ <b>Up ảnh/video có âm thanh từ thư viện</b>
+' +
+      '✅ <b>Chế độ đăng riêng tư</b>
+' +
+      '✅ <b>Toàn bộ Ghi chú, Caption màu hay ho đặc sắc</b>
+' +
+      '✅ <b>Và toàn bộ các tính năng Locket Gold khác...</b>
+' +
+      '✅ <b>Xóa app tải lại vẫn còn Gold</b>
+' +
+      '✅ <b>Đăng xuất ➔ đăng nhập lại vẫn còn Gold</b>
+' +
+      '✅ <b>Độ ổn định tuyệt đối, không bị rụng gold trong quá trình sử dụng</b>
+' +
+      '✅ <b>Bảo hành full thời gian sử dụng</b>
+' +
+      '🗣️ <i>Không có hiệu ứng huy hiệu Locket Gold ngoài profile nhưng full tính năng VIP!</i>
+
+' +
+      '💲 <b>Giá bán:</b>
+' +
+      '• <code>60.000 VNĐ / 6 Tháng</code> - Bảo hành full
+' +
+      '• <code>100.000 VNĐ / 1 Năm</code> - Bảo hành full
+
+' +
       '👉 <b>Chọn gói bạn muốn nâng cấp:</b>';
 
     await ctx.reply(featuresText, {
@@ -160,22 +188,35 @@ bot.action('pkg_6m', async (ctx) => {
   const orderId = Math.floor(10000000 + Math.random() * 90000000);
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
   
-  // Link VietQR chuẩn cho Gói 6 Tháng (60.000đ)
   const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=60000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
-    '💳 <b>THANH TOÁN UP LOCKET GOLD (6 THÁNG)</b>\n' +
-    '──────────────────────────────\n' +
-    '👤 <b>Username:</b> ' + session.cleanUsername + '\n' +
-    '🆔 <b>UID:</b>\n' +
-    '<code>' + session.uid + '</code>\n' +
-    '📦 <b>Gói:</b> 6 Tháng\n' +
-    '💰 <b>Số tiền:</b> <code>60.000 VNĐ</code>\n' +
-    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
-    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội\n' +
-    '🔢 <b>Số TK:</b> <code>3955555666666</code>\n' +
-    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>\n' +
-    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>\n\n' +
+    '💳 <b>THANH TOÁN UP LOCKET GOLD (6 THÁNG)</b>
+' +
+    '──────────────────────────────
+' +
+    '👤 <b>Username:</b> ' + session.cleanUsername + '
+' +
+    '🆔 <b>UID:</b>
+' +
+    '<code>' + session.uid + '</code>
+' +
+    '📦 <b>Gói:</b> 6 Tháng
+' +
+    '💰 <b>Số tiền:</b> <code>60.000 VNĐ</code>
+' +
+    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>
+
+' +
+    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội
+' +
+    '🔢 <b>Số TK:</b> <code>3955555666666</code>
+' +
+    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>
+' +
+    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>
+
+' +
     '📸 <b>HƯỚNG DẪN:</b> Quét mã QR bên trên hoặc chuyển khoản đúng số tiền & đúng nội dung. Sau đó <b>gửi ảnh chụp bill</b> vào đây để Admin duyệt ngay nhé! ❤️';
 
   const paymentMarkup = Markup.inlineKeyboard([
@@ -199,22 +240,35 @@ bot.action('pkg_1y', async (ctx) => {
   const orderId = Math.floor(10000000 + Math.random() * 90000000);
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
   
-  // Link VietQR chuẩn cho Gói 1 Năm (100.000đ)
   const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=100000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
-    '💳 <b>THANH TOÁN UP LOCKET GOLD (1 NĂM)</b>\n' +
-    '──────────────────────────────\n' +
-    '👤 <b>Username:</b> ' + session.cleanUsername + '\n' +
-    '🆔 <b>UID:</b>\n' +
-    '<code>' + session.uid + '</code>\n' +
-    '📦 <b>Gói:</b> 1 Năm\n' +
-    '💰 <b>Số tiền:</b> <code>100.000 VNĐ</code>\n' +
-    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
-    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội\n' +
-    '🔢 <b>Số TK:</b> <code>3955555666666</code>\n' +
-    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>\n' +
-    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>\n\n' +
+    '💳 <b>THANH TOÁN UP LOCKET GOLD (1 NĂM)</b>
+' +
+    '──────────────────────────────
+' +
+    '👤 <b>Username:</b> ' + session.cleanUsername + '
+' +
+    '🆔 <b>UID:</b>
+' +
+    '<code>' + session.uid + '</code>
+' +
+    '📦 <b>Gói:</b> 1 Năm
+' +
+    '💰 <b>Số tiền:</b> <code>100.000 VNĐ</code>
+' +
+    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>
+
+' +
+    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội
+' +
+    '🔢 <b>Số TK:</b> <code>3955555666666</code>
+' +
+    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>
+' +
+    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>
+
+' +
     '📸 <b>HƯỚNG DẪN:</b> Quét mã QR bên trên hoặc chuyển khoản đúng số tiền & đúng nội dung. Sau đó <b>gửi ảnh chụp bill</b> vào đây để Admin duyệt ngay nhé! ❤️';
 
   const paymentMarkup = Markup.inlineKeyboard([
