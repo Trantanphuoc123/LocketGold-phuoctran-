@@ -14,18 +14,18 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const waitingForPackage = new Map();
 
 const guideText = 
-  '💛 *ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA* 💛\n\n' +
-  '1️⃣ *Tải & Mở Cấu Hình Trên Safari*\n' +
-  '👉 **Giữ chặt** vào nút *"📥 Tải Cấu Hình .mobileconfig"*, sau đó chọn 👉 **[ MỞ TRÌNH DUYỆT ]** để chuyển sang Safari.\n' +
-  'Khi iPhone hiển thị thông báo cố gắng tải về hồ sơ cấu hình ➔ Bấm **Cho phép (Allow)** ➔ Bấm **Đóng**.\n\n' +
-  '2️⃣ *Cài Đặt Hồ Sơ Trong Cài Đặt iPhone*\n' +
-  'Mở Cài đặt (Settings) ➔ Bấm **"Đã tải về hồ sơ"** ➔ Bấm **Cài đặt** góc trên bên phải ➔ Nhập mật mã mở khóa màn hình.\n\n' +
-  '3️⃣ *Vào Cài Đặt Tin Cậy Chứng Nhận*\n' +
-  'Vào Cài đặt ➔ Cài đặt chung (General) ➔ Giới thiệu (About) ➔ Cuộn xuống dưới cùng chọn **"Cài đặt tin cậy chứng nhận"** (Certificate Trust Settings).\n\n' +
-  '4️⃣ *Bật Xanh Công Tắc Chứng Chỉ "Locket Gold Root CA"*\n' +
-  'Tại mục *"Bật toàn bộ tin cậy cho các chứng chỉ gốc"* ➔ Gạt **BẬT XANH** dòng **"Locket Gold Root CA"** ➔ Chọn Tiếp tục (Continue).\n\n' +
-  '5️⃣ *Mở App & Tận Hưởng*\n' +
-  'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu **Locket Gold**, quay video 30s/90s, bộ khung & caption độc quyền!';
+  '💛 <b>ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA</b> 💛\n\n' +
+  '1️⃣ <b>Tải & Mở Cấu Hình Trên Safari</b>\n' +
+  '👉 <b>Giữ chặt</b> vào nút <i>"📥 Tải Cấu Hình .mobileconfig"</i>, sau đó chọn 👉 <b>[ MỞ TRÌNH DUYỆT ]</b> để chuyển sang Safari.\n' +
+  'Khi iPhone hiển thị thông báo cố gắng tải về hồ sơ cấu hình ➔ Bấm <b>Cho phép (Allow)</b> ➔ Bấm <b>Đóng</b>.\n\n' +
+  '2️⃣ <b>Cài Đặt Hồ Sơ Trong Cài Đặt iPhone</b>\n' +
+  'Mở Cài đặt (Settings) ➔ Bấm <b>"Đã tải về hồ sơ"</b> ➔ Bấm <b>Cài đặt</b> góc trên bên phải ➔ Nhập mật mã mở khóa màn hình.\n\n' +
+  '3️⃣ <b>Vào Cài Đặt Tin Cậy Chứng Nhận</b>\n' +
+  'Vào Cài đặt ➔ Cài đặt chung (General) ➔ Giới thiệu (About) ➔ Cuộn xuống dưới cùng chọn <b>"Cài đặt tin cậy chứng nhận"</b> (Certificate Trust Settings).\n\n' +
+  '4️⃣ <b>Bật Xanh Công Tắc Chứng Chỉ "Locket Gold Root CA"</b>\n' +
+  'Tại mục <i>"Bật toàn bộ tin cậy cho các chứng chỉ gốc"</i> ➔ Gạt <b>BẬT XANH</b> dòng <b>"Locket Gold Root CA"</b> ➔ Chọn Tiếp tục (Continue).\n\n' +
+  '5️⃣ <b>Mở App & Tận Hưởng</b>\n' +
+  'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu <b>Locket Gold</b>, quay video 30s/90s, bộ khung & caption độc quyền!';
 
 bot.start((ctx) => {
   ctx.reply(
@@ -40,7 +40,7 @@ bot.start((ctx) => {
 bot.action('show_guide', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.reply(guideText, {
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
       [Markup.button.callback('✨ Nhận Locket Gold Ngay', 'get_locket')]
     ])
@@ -50,14 +50,14 @@ bot.action('show_guide', async (ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   await ctx.reply(
-    '💎 *BẢNG GIÁ KÍCH HOẠT LOCKET GOLD VIP* 💎\n\n' +
-    '🔥 *Đặc quyền siêu xịn:* Mở khóa full icon xịn, huy hiệu Locket Gold lung linh, quay video dài 30s/90s không giới hạn, trọn bộ khung ảnh & caption độc quyền! Hoạt động ổn định suốt thời hạn gói cước, bảo hành uy tín 24/7! 🚀\n\n' +
-    '📦 *LỰA CHỌN GÓI DỊCH VỤ:*\n' +
-    '• 🥈 *Gói 6 Tháng:* `60.000đ` (Siêu tiết kiệm)\n' +
-    '• 🥇 *Gói 1 Năm:* `100.000đ` (Dùng cả năm cực hời)\n\n' +
+    '💎 <b>BẢNG GIÁ KÍCH HOẠT LOCKET GOLD VIP</b> 💎\n\n' +
+    '🔥 <b>Đặc quyền siêu xịn:</b> Mở khóa full icon xịn, huy hiệu Locket Gold lung linh, quay video dài 30s/90s không giới hạn, trọn bộ khung ảnh & caption độc quyền! Hoạt động ổn định suốt thời hạn gói cước, bảo hành uy tín 24/7! 🚀\n\n' +
+    '📦 <b>LỰA CHỌN GÓI DỊCH VỤ:</b>\n' +
+    '• 🥈 <b>Gói 6 Tháng:</b> <code>60.000đ</code> (Siêu tiết kiệm)\n' +
+    '• 🥇 <b>Gói 1 Năm:</b> <code>100.000đ</code> (Dùng cả năm cực hời)\n\n' +
     '👉 Bạn muốn đăng ký gói nào? Hãy bấm chọn bên dưới nhé:',
     {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       ...Markup.inlineKeyboard([
         [Markup.button.callback('🥈 Đăng Ký Gói 6 Tháng (60k)', 'pkg_6m')],
         [Markup.button.callback('🥇 Đăng Ký Gói 1 Năm (100k)', 'pkg_1y')],
@@ -71,9 +71,9 @@ bot.action('pkg_6m', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForPackage.set(ctx.from.id, { name: '6 Tháng (60k)', amount: '60000', display: '60.000đ' });
   await ctx.reply(
-    '🥈 Bạn đã chọn Gói 6 Tháng (60.000đ).\n\n' +
-    '👉 Bây giờ, hãy gửi Username hoặc Link Locket của bạn vào đây (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`):',
-    { parse_mode: 'Markdown' }
+    '🥈 Bạn đã chọn <b>Gói 6 Tháng (60.000đ)</b>.\n\n' +
+    '👉 Bây giờ, hãy gửi <b>Username hoặc Link Locket</b> của bạn vào đây (Ví dụ: <code>ttp_25</code> hoặc <code>https://locket.cam/ttp_25</code>):',
+    { parse_mode: 'HTML' }
   );
 });
 
@@ -81,9 +81,9 @@ bot.action('pkg_1y', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForPackage.set(ctx.from.id, { name: '1 Năm (100k)', amount: '100000', display: '100.000đ' });
   await ctx.reply(
-    '🥇 Bạn đã chọn Gói 1 Năm (100.000đ).\n\n' +
-    '👉 Bây giờ, hãy gửi Username hoặc Link Locket của bạn vào đây (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`):',
-    { parse_mode: 'Markdown' }
+    '🥇 Bạn đã chọn <b>Gói 1 Năm (100.000đ)</b>.\n\n' +
+    '👉 Bây giờ, hãy gửi <b>Username hoặc Link Locket</b> của bạn vào đây (Ví dụ: <code>ttp_25</code> hoặc <code>https://locket.cam/ttp_25</code>):',
+    { parse_mode: 'HTML' }
   );
 });
 
@@ -97,9 +97,12 @@ bot.on('text', async (ctx) => {
     if (!waitingForPackage.has(userId)) {
       return ctx.reply(
         '⚠️ Phiên làm việc đã hết hạn hoặc bot vừa khởi động lại. Mấy ní vui lòng bấm nút bên dưới để chọn lại gói giúp anh nhé! 👇',
-        Markup.inlineKeyboard([
-          [Markup.button.callback('✨ Bảng Giá & Nhận Locket Gold', 'get_locket')]
-        ])
+        {
+          parse_mode: 'HTML',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('✨ Bảng Giá & Nhận Locket Gold', 'get_locket')]
+          ])
+        }
       );
     }
 
@@ -115,7 +118,10 @@ bot.on('text', async (ctx) => {
 
     if (!cleanUsername) {
       return ctx.reply('❌ Username không hợp lệ! Vui lòng bấm chọn lại gói và nhập đúng username nhé.', 
-        Markup.inlineKeyboard([[Markup.button.callback('✨ Chọn lại gói', 'get_locket')]])
+        {
+          parse_mode: 'HTML',
+          ...Markup.inlineKeyboard([[Markup.button.callback('✨ Chọn lại gói', 'get_locket')]])
+        }
       );
     }
 
@@ -123,19 +129,19 @@ bot.on('text', async (ctx) => {
     const qrImageUrl = `https://img.vietqr.io/image/MB-3955555666666-compact2.png?amount=${pkgInfo.amount}&addInfo=${encodeURIComponent(transferSyntax)}&accountName=${encodeURIComponent('TRAN TAN PHUOC')}`;
 
     const paymentCaption = 
-      '🎉 *ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!*\n\n' +
-      '👤 *Username:* `' + cleanUsername + '`\n' +
-      '📦 *Gói đăng ký:* `' + pkgInfo.name + '`\n' +
-      '💰 *Số tiền cần thanh toán:* `' + pkgInfo.display + '`\n\n' +
-      '💳 *THÔNG TIN CHUYỂN KHOẢN:*\n' +
-      '• *Ngân hàng:* MB BANK (Ngân Hàng Quân Đội)\n' +
-      '• *Số tài khoản:* `3955555666666`\n' +
-      '• *Chủ tài khoản:* `TRAN TAN PHUOC`\n' +
-      '• *Số tiền:* `' + pkgInfo.display + '`\n' +
-      '• *Nội dung chuyển khoản (BẮT BUỘC ĐÚNG):*\n' +
-      '`' + transferSyntax + '`\n\n' +
-      '📸 *HƯỚNG DẪN NHÂN HÀNG:*\n' +
-      'Quét mã QR trên ảnh hoặc chuyển khoản đúng STK & nội dung. Sau đó *gửi ảnh chụp bill (biên lai chuyển tiền)* vào đây để Admin duyệt ngay lập tức nhé! ❤️';
+      '🎉 <b>ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!</b>\n\n' +
+      '👤 <b>Username:</b> <code>' + cleanUsername + '</code>\n' +
+      '📦 <b>Gói đăng ký:</b> <code>' + pkgInfo.name + '</code>\n' +
+      '💰 <b>Số tiền cần thanh toán:</b> <code>' + pkgInfo.display + '</code>\n\n' +
+      '💳 <b>THÔNG TIN CHUYỂN KHOẢN:</b>\n' +
+      '• <b>Ngân hàng:</b> MB BANK (Ngân Hàng Quân Đội)\n' +
+      '• <b>Số tài khoản:</b> <code>3955555666666</code>\n' +
+      '• <b>Chủ tài khoản:</b> <code>TRAN TAN PHUOC</code>\n' +
+      '• <b>Số tiền:</b> <code>' + pkgInfo.display + '</code>\n' +
+      '• <b>Nội dung chuyển khoản (BẮT BUỘC ĐÚNG):</b>\n' +
+      '<code>' + transferSyntax + '</code>\n\n' +
+      '📸 <b>HƯỚNG DẪN NHẬN HÀNG:</b>\n' +
+      'Quét mã QR trên ảnh hoặc chuyển khoản đúng STK & nội dung. Sau đó <b>gửi ảnh chụp bill (biên lai chuyển tiền)</b> vào đây để Admin duyệt ngay lập tức nhé! ❤️';
 
     const socialButtons = Markup.inlineKeyboard([
       [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')],
@@ -144,7 +150,7 @@ bot.on('text', async (ctx) => {
 
     await ctx.replyWithPhoto({ url: qrImageUrl }, {
       caption: paymentCaption,
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       ...socialButtons
     });
 
