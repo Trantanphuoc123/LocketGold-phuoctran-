@@ -14,7 +14,7 @@ http.createServer((req, res) => {
 const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
 const waitingForUsername = new Set();
 
-// Nội dung hướng dẫn cài đặt chuẩn đã đổi tiêu đề cực kỳ thân thiện
+// Nội dung hướng dẫn cài đặt chuẩn
 const guideText = 
   '💛 *ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA* 💛\n' +
   '🌐 _Cloud 24/7 Online (160.191.242.70:443)_\n\n' +
@@ -55,7 +55,8 @@ bot.action('show_guide', async (ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForUsername.add(ctx.from.id);
-  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi **Link profile** hoặc **Username** Locket (Ví dụ: `ttp_25` hoặc `https://locket.cam/ttp_25`) vào đây nhé:');
+  // Đã gỡ bỏ hoàn toàn dấu nháy/dấu huyền quanh ví dụ để không bị dính lỗi
+  await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi Link profile hoặc Username Locket (Ví dụ: ttp_25 hoặc https://locket.cam/ttp_25) vào đây nhé:');
 });
 
 bot.on('text', async (ctx) => {
@@ -69,7 +70,9 @@ bot.on('text', async (ctx) => {
 
     const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
+    // Tự động lọc sạch dấu nháy dư thừa nếu có lỡ dính
     let cleanUsername = text
+      .replace(/['"`]/g, '')
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
       .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
       .replace(/\//g, '')
