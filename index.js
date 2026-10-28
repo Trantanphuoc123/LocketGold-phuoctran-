@@ -17,7 +17,7 @@ const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid, cus
 // Cố định ID của Admin (anh Phước)
 const ADMIN_ID = 1402351028;
 
-// Cài đặt danh sách lệnh (Menu commands) cho bot hiển thị góc trái bên dưới
+// CÀI ĐẶT MENU LỆNH (NÚT XANH "MENU" BÊN GÓC TRÁI DƯỚI)
 bot.telegram.setMyCommands([
   { command: 'start', description: '🚀 Bắt đầu kiểm tra tài khoản Locket' },
   { command: 'guide', description: '📖 Hướng dẫn cài đặt chi tiết' }
@@ -54,7 +54,7 @@ bot.start(async (ctx) => {
   );
 });
 
-// Lệnh /guide hoặc nút hướng dẫn
+// Lệnh /guide
 bot.command('guide', async (ctx) => {
   try {
     await ctx.deleteMessage();
@@ -396,7 +396,7 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
   }
 });
 
-// Admin bấm nút Từ chối
+// Admin bấm nút **[X] Menu** hoặc nút từ chối
 bot.action(/^reject_(\d+)$/, async (ctx) => {
   await ctx.answerCbQuery('Đã từ chối đơn hàng.');
   const orderId = Number(ctx.match[1]);
