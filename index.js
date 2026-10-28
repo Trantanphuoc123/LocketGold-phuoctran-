@@ -11,7 +11,7 @@ http.createServer((req, res) => {
   console.log(`Server is listening on port ${PORT}`);
 });
 
-const bot = new Telegraf('8947538704:AAGUHNPwy2gqpoACi3aJgieeJlYbzNGVzQQ');
+const bot = new Telegraf('8947538704:AAGKLE6fNptqJEMjLDIsBhoDhDASlRjNWH4');
 const waitingForUsername = new Set();
 
 // Nội dung hướng dẫn cài đặt chuẩn
@@ -55,7 +55,6 @@ bot.action('show_guide', async (ctx) => {
 bot.action('get_locket', async (ctx) => {
   await ctx.answerCbQuery();
   waitingForUsername.add(ctx.from.id);
-  // Đã gỡ bỏ hoàn toàn dấu nháy/dấu huyền quanh ví dụ để không bị dính lỗi
   await ctx.reply('👉 Nào, bây giờ mấy ní hãy gửi Link profile hoặc Username Locket (Ví dụ: ttp_25 hoặc https://locket.cam/ttp_25) vào đây nhé:');
 });
 
@@ -70,7 +69,6 @@ bot.on('text', async (ctx) => {
 
     const processingMsg = await ctx.reply('⏳ Đang xử lý và tạo link tải cấu hình...');
 
-    // Tự động lọc sạch dấu nháy dư thừa nếu có lỡ dính
     let cleanUsername = text
       .replace(/['"`]/g, '')
       .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
