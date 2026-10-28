@@ -17,6 +17,12 @@ const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid, cus
 // Cố định ID của Admin (anh Phước)
 const ADMIN_ID = 1402351028;
 
+// Cài đặt danh sách lệnh (Menu commands) cho bot hiển thị góc trái bên dưới
+bot.telegram.setMyCommands([
+  { command: 'start', description: '🚀 Bắt đầu kiểm tra tài khoản Locket' },
+  { command: 'guide', description: '📖 Hướng dẫn cài đặt chi tiết' }
+]);
+
 // Hướng dẫn cài đặt
 const guideText = 
   '💛 <b>ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA</b> 💛\n\n' +
@@ -46,6 +52,20 @@ bot.start(async (ctx) => {
       ])
     }
   );
+});
+
+// Lệnh /guide hoặc nút hướng dẫn
+bot.command('guide', async (ctx) => {
+  try {
+    await ctx.deleteMessage();
+  } catch (e) {}
+  
+  await ctx.reply(guideText, {
+    parse_mode: 'HTML',
+    ...Markup.inlineKeyboard([
+      [Markup.button.callback('✨ Bắt đầu ngay', 'start_prompt')]
+    ])
+  });
 });
 
 bot.action('show_guide', async (ctx) => {
@@ -176,7 +196,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// Hàm chung để xử lý hiển thị QR và tự động xóa sau 3 phút nếu không thanh toán
+// Hàm chung xử lý chọn gói & tự hủy sau 3 phút
 async function handlePackageSelection(ctx, amount, pkgName) {
   await ctx.answerCbQuery();
   try { await ctx.deleteMessage(); } catch (e) {}
@@ -213,7 +233,6 @@ async function handlePackageSelection(ctx, amount, pkgName) {
     [Markup.button.url('✈️ Telegram Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
   ]);
 
-  // Gửi QR cho khách
   const sentMsg = await ctx.replyWithPhoto({ url: qrImageUrl }, {
     caption: paymentCaption,
     parse_mode: 'HTML',
@@ -222,7 +241,6 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
   const customerMsgId = sentMsg.message_id;
 
-  // Gửi thông báo cho Admin (để Admin có sẵn đơn chờ, nhưng sẽ tự hủy cùng lúc nếu quá 3 phút)
   const adminCaption = 
     '🔔 <b>CÓ ĐƠN KHỞI TẠO THANH TOÁN (CHỜ BILL)!</b>\n' +
     '──────────────────────────────\n' +
@@ -235,20 +253,16 @@ async function handlePackageSelection(ctx, amount, pkgName) {
   const adminMsg = await ctx.telegram.sendMessage(ADMIN_ID, adminCaption, { parse_mode: 'HTML' });
   const adminMsgId = adminMsg.message_id;
 
-  // Lưu vào pendingOrders
   pendingOrders.set(orderId, { userId, username: session.cleanUsername, pkg: pkgName, uid: session.uid, customerMsgId, adminMsgId });
 
-  // THIẾT LẬP HẸN GIỜ TỰ ĐỘNG XÓA SAU 3 PHÚT (180,000 ms)
   setTimeout(async () => {
     const order = pendingOrders.get(orderId);
     if (order) {
-      // Xóa tin nhắn QR của khách
       try {
         await ctx.telegram.deleteMessage(userId, customerMsgId);
         await ctx.telegram.sendMessage(userId, '⏰ <b>Mã thanh toán QR đã hết hạn (sau 3 phút)!</b> Vui lòng gửi lại link Locket nếu bạn vẫn muốn tiếp tục mua nhé.', { parse_mode: 'HTML' });
       } catch (e) {}
 
-      // Xóa tin nhắn thông báo của Admin
       try {
         await ctx.telegram.deleteMessage(ADMIN_ID, adminMsgId);
       } catch (e) {}
@@ -285,24 +299,19 @@ bot.on('photo', async (ctx) => {
     const uid = session ? session.uid : '2dz10mKITDbSSWYDiPiHtWTM4S02';
     const orderId = session && session.orderId ? session.orderId : Math.floor(10000000 + Math.random() * 90000000);
 
-    // Tìm xem có order đang chờ nào của user này không để xóa tin nhắn chờ cũ của admin, thay bằng ảnh bill thật
-    let existingOrderId = null;
     let oldAdminMsgId = null;
     for (let [oid, ord] of pendingOrders.entries()) {
       if (ord.userId === userId) {
-        existingOrderId = oid;
         oldAdminMsgId = ord.adminMsgId;
         pendingOrders.delete(oid);
         break;
       }
     }
 
-    // Xóa tin nhắn thông báo chờ cũ bên Admin nếu có
     if (oldAdminMsgId) {
       try { await ctx.telegram.deleteMessage(ADMIN_ID, oldAdminMsgId); } catch (e) {}
     }
 
-    // Lưu đơn mới có kèm bill chờ duyệt
     pendingOrders.set(orderId, { userId, username, pkg, uid });
 
     const photos = ctx.message.photo;
@@ -324,7 +333,6 @@ bot.on('photo', async (ctx) => {
       ]
     ]);
 
-    // Gửi ảnh bill thật về cho Admin
     await ctx.telegram.sendPhoto(ADMIN_ID, photoFileId, {
       caption: adminCaption,
       parse_mode: 'HTML',
