@@ -11,9 +11,9 @@ http.createServer((req, res) => {
 });
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const waitingForPackage = new Map();
+const userSession = new Map(); // userId -> { cleanUsername, displayName, uid, avatarUrl }
 
-// Nội dung hướng dẫn cài đặt chuẩn
+// Hướng dẫn cài đặt
 const guideText = 
   '💛 <b>ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA</b> 💛\n\n' +
   '1️⃣ <b>Tải & Mở Cấu Hình Trên Safari</b>\n' +
@@ -30,11 +30,13 @@ const guideText =
 
 bot.start((ctx) => {
   ctx.reply(
-    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold VIP rồi chứ gì? Chiều lòng mấy ní hết nấc luôn ✨\n👉 Bấm ngay nút bên dưới để chọn gói và nhận Locket Gold ngay thôi nhé!',
-    Markup.inlineKeyboard([
-      [Markup.button.callback('✨ Bảng Giá & Nhận Locket Gold', 'get_locket')],
-      [Markup.button.callback('📖 Xem Hướng Dẫn Cài Đặt', 'show_guide')]
-    ])
+    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold VIP rồi chứ gì? Chiều lòng mấy ní hết nấc luôn ✨\n👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây để bắt đầu kiểm tra tài khoản nhé!',
+    {
+      parse_mode: 'HTML',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('📖 Xem Hướng Dẫn Cài Đặt', 'show_guide')]
+      ])
+    }
   );
 });
 
@@ -43,72 +45,23 @@ bot.action('show_guide', async (ctx) => {
   await ctx.reply(guideText, {
     parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
-      [Markup.button.callback('✨ Nhận Locket Gold Ngay', 'get_locket')]
+      [Markup.button.callback('✨ Bắt đầu ngay', 'start_prompt')]
     ])
   });
 });
 
-bot.action('get_locket', async (ctx) => {
+bot.action('start_prompt', async (ctx) => {
   await ctx.answerCbQuery();
-  await ctx.reply(
-    '💎 <b>BẢNG GIÁ KÍCH HOẠT LOCKET GOLD VIP</b> 💎\n\n' +
-    '🔥 <b>Đặc quyền siêu xịn:</b> Mở khóa full icon xịn, huy hiệu Locket Gold lung linh, quay video dài 30s/90s không giới hạn, trọn bộ khung ảnh & caption độc quyền! Hoạt động ổn định suốt thời hạn gói cước, bảo hành uy tín 24/7! 🚀\n\n' +
-    '📦 <b>LỰA CHỌN GÓI DỊCH VỤ:</b>\n' +
-    '• 🥈 <b>Gói 6 Tháng:</b> <code>60.000đ</code> (Siêu tiết kiệm)\n' +
-    '• 🥇 <b>Gói 1 Năm:</b> <code>100.000đ</code> (Dùng cả năm cực hời)\n\n' +
-    '👉 Bạn muốn đăng ký gói nào? Hãy bấm chọn bên dưới nhé:',
-    {
-      parse_mode: 'HTML',
-      ...Markup.inlineKeyboard([
-        [Markup.button.callback('🥈 Đăng Ký Gói 6 Tháng (60k)', 'pkg_6m')],
-        [Markup.button.callback('🥇 Đăng Ký Gói 1 Năm (100k)', 'pkg_1y')],
-        [Markup.button.callback('📖 Xem Hướng Dẫn', 'show_guide')]
-      ])
-    }
-  );
+  await ctx.reply('👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây nhé:', { parse_mode: 'HTML' });
 });
 
-bot.action('pkg_6m', async (ctx) => {
-  await ctx.answerCbQuery();
-  waitingForPackage.set(ctx.from.id, { name: '6 Tháng (60k)', amount: '60000', display: '60.000đ' });
-  await ctx.reply(
-    '🥈 Bạn đã chọn <b>Gói 6 Tháng (60.000đ)</b>.\n\n' +
-    '👉 Bây giờ, hãy gửi <b>Username hoặc Link Locket</b> của bạn vào đây (Ví dụ: <code>ttp_25</code> hoặc <code>https://locket.cam/ttp_25</code>):',
-    { parse_mode: 'HTML' }
-  );
-});
-
-bot.action('pkg_1y', async (ctx) => {
-  await ctx.answerCbQuery();
-  waitingForPackage.set(ctx.from.id, { name: '1 Năm (100k)', amount: '100000', display: '100.000đ' });
-  await ctx.reply(
-    '🥇 Bạn đã chọn <b>Gói 1 Năm (100.000đ)</b>.\n\n' +
-    '👉 Bây giờ, hãy gửi <b>Username hoặc Link Locket</b> của bạn vào đây (Ví dụ: <code>ttp_25</code> hoặc <code>https://locket.cam/ttp_25</code>):',
-    { parse_mode: 'HTML' }
-  );
-});
-
+// Xử lý khi khách gửi Username hoặc Link Locket
 bot.on('text', async (ctx) => {
   try {
     const userId = ctx.from.id;
     const text = ctx.message.text.trim();
 
     if (text.startsWith('/')) return;
-
-    if (!waitingForPackage.has(userId)) {
-      return ctx.reply(
-        '⚠️ Phiên làm việc đã hết hạn hoặc bot vừa khởi động lại. Mấy ní vui lòng bấm nút bên dưới để chọn lại gói giúp anh nhé! 👇',
-        {
-          parse_mode: 'HTML',
-          ...Markup.inlineKeyboard([
-            [Markup.button.callback('✨ Bảng Giá & Nhận Locket Gold', 'get_locket')]
-          ])
-        }
-      );
-    }
-
-    const pkgInfo = waitingForPackage.get(userId);
-    waitingForPackage.delete(userId);
 
     let cleanUsername = text
       .replace(/['"`]/g, '')
@@ -118,53 +71,222 @@ bot.on('text', async (ctx) => {
       .trim();
 
     if (!cleanUsername) {
-      return ctx.reply('❌ Username không hợp lệ! Vui lòng bấm chọn lại gói và nhập đúng username nhé.', 
-        {
-          parse_mode: 'HTML',
-          ...Markup.inlineKeyboard([[Markup.button.callback('✨ Chọn lại gói', 'get_locket')]])
-        }
-      );
+      return ctx.reply('❌ Username không hợp lệ! Vui lòng nhập đúng Link hoặc Username Locket nhé.', { parse_mode: 'HTML' });
     }
 
-    const transferSyntax = `LOCKET ${cleanUsername}`;
-    
-    // Sử dụng đúng chuẩn link QR từ vietqr.app theo yêu cầu của anh
-    const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=${pkgInfo.amount}&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
+    // Cào thông tin từ trang Locket cá nhân
+    let avatarUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=500&auto=format&fit=crop';
+    let displayName = cleanUsername;
+    let uid = '2dz10mKITDbSSWYDiPiHtWTM4S02'; // UID mô phỏng chuẩn
 
-    const paymentCaption = 
-      '🎉 <b>ĐÃ GHI NHẬN THÔNG TIN TÀI KHOẢN!</b>\n\n' +
-      '👤 <b>Username:</b> <code>' + cleanUsername + '</code>\n' +
-      '📦 <b>Gói đăng ký:</b> <code>' + pkgInfo.name + '</code>\n' +
-      '💰 <b>Số tiền cần thanh toán:</b> <code>' + pkgInfo.display + '</code>\n\n' +
-      '💳 <b>THÔNG TIN CHUYỂN KHOẢN:</b>\n' +
-      '• <b>Ngân hàng:</b> MB BANK (Ngân Hàng Quân Đội)\n' +
-      '• <b>Số tài khoản:</b> <code>3955555666666</code>\n' +
-      '• <b>Chủ tài khoản:</b> <code>TRAN TAN PHUOC</code>\n' +
-      '• <b>Số tiền:</b> <code>' + pkgInfo.display + '</code>\n' +
-      '• <b>Nội dung chuyển khoản (BẮT BUỘC ĐÚNG):</b>\n' +
-      '<code>' + transferSyntax + '</code>\n\n' +
-      '📸 <b>HƯỚNG DẪN NHẬN HÀNG:</b>\n' +
-      'Quét mã QR trên ảnh hoặc chuyển khoản đúng STK & nội dung. Sau đó <b>gửi ảnh chụp bill (biên lai chuyển tiền)</b> vào đây để Admin duyệt ngay lập tức nhé! ❤️';
+    try {
+      const response = await axios.get(`https://locket.cam/${cleanUsername}`, { timeout: 4000 });
+      const html = response.data;
+      
+      const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+      if (imgMatch && imgMatch[1]) {
+        avatarUrl = imgMatch[1];
+      }
 
-    const socialButtons = Markup.inlineKeyboard([
-      [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')],
-      [Markup.button.callback('🔄 Chọn lại gói khác', 'get_locket')]
+      const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
+      if (titleMatch && titleMatch[1]) {
+        displayName = titleMatch[1];
+      }
+    } catch (e) {
+      console.log('Không cào được profile Locket, dùng dữ liệu mặc định.');
+    }
+
+    // Lưu session người dùng
+    userSession.set(userId, { cleanUsername, displayName, uid, avatarUrl });
+
+    // Hiển thị Thông tin tài khoản Locket (giống Ảnh 1)
+    const profileCaption = 
+      '💛 <b>THÔNG TIN TÀI KHOẢN</b>
+' +
+      '<b>LOCKET</b>
+' +
+      '──────────────────────────────
+' +
+      '🖼️ <b>Tên:</b> 👻 🔥
+' +
+      '🪪 <b>Display Name:</b> ' + displayName + '
+' +
+      '👤 <b>Username:</b> ' + cleanUsername + '
+' +
+      '🆔 <b>UID:</b>
+' +
+      '<code>' + uid + '</code>
+' +
+      '👑 <b>Gold Status:</b> 🔒 <b>No Active</b>';
+
+    const pricingMenuMarkup = Markup.inlineKeyboard([
+      [Markup.button.callback('⚡ Gói 6 Tháng (60K)', 'pkg_6m')],
+      [Markup.button.callback('💎 Gói 1 Năm (100K)', 'pkg_1y')],
+      [Markup.button.callback('📖 Hướng dẫn cài đặt', 'show_guide')]
     ]);
 
-    await ctx.replyWithPhoto({ url: qrImageUrl }, {
-      caption: paymentCaption,
+    // Gửi ảnh đại diện kèm thông tin tài khoản (Ảnh 1)
+    await ctx.replyWithPhoto({ url: avatarUrl }, {
+      caption: profileCaption,
+      parse_mode: 'HTML'
+    });
+
+    // Gửi tiếp menu tính năng và bảng giá (giống Ảnh 2)
+    const featuresText = 
+      '✅ <b>Quay video 30s có âm thanh</b>
+' +
+      '✅ <b>Up ảnh/video có âm thanh từ thư viện</b>
+' +
+      '✅ <b>Chế độ đăng riêng tư</b>
+' +
+      '✅ <b>Toàn bộ Ghi chú, Caption màu hay ho đặc sắc</b>
+' +
+      '✅ <b>Và toàn bộ các tính năng Locket Gold khác...</b>
+' +
+      '✅ <b>Xóa app tải lại vẫn còn Gold</b>
+' +
+      '✅ <b>Đăng xuất ➔ đăng nhập lại vẫn còn Gold</b>
+' +
+      '✅ <b>Độ ổn định tuyệt đối, không bị rụng gold trong quá trình sử dụng</b>
+' +
+      '✅ <b>Bảo hành full thời gian sử dụng</b>
+' +
+      '🗣️ <i>Không có hiệu ứng huy hiệu Locket Gold ngoài profile nhưng full tính năng VIP!</i>
+
+' +
+      '💲 <b>Giá bán:</b>
+' +
+      '• <code>60.000 VNĐ / 6 Tháng</code> - Bảo hành full
+' +
+      '• <code>100.000 VNĐ / 1 Năm</code> - Bảo hành full
+
+' +
+      '👉 <b>Chọn gói bạn muốn nâng cấp:</b>';
+
+    await ctx.reply(featuresText, {
       parse_mode: 'HTML',
-      ...socialButtons
+      ...pricingMenuMarkup
     });
 
   } catch (err) {
-    console.error('Lỗi xử lý tin nhắn text:', err);
-    ctx.reply('⚠️ Đã xảy ra lỗi nhỏ, mấy ní vui lòng bấm /start để thao tác lại từ đầu giúp anh nhé!');
+    console.error('Lỗi xử lý tin nhắn:', err);
+    ctx.reply('⚠️ Đã xảy ra lỗi khi check tài khoản, vui lòng thử lại hoặc gửi lại link Locket nhé!');
   }
 });
 
+// Xử lý khi khách chọn gói 6 tháng
+bot.action('pkg_6m', async (ctx) => {
+  await ctx.answerCbQuery();
+  const userId = ctx.from.id;
+  const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
+  
+  const orderId = Math.floor(10000000 + Math.random() * 90000000);
+  const transferSyntax = `LOCKET ${session.cleanUsername}`;
+  
+  // Link VietQR chuẩn cho Gói 6 Tháng (60.000đ)
+  const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=60000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
+
+  const paymentCaption = 
+    '💳 <b>THANH TOÁN UP LOCKET GOLD (6 THÁNG)</b>
+' +
+    '──────────────────────────────
+' +
+    '👤 <b>Username:</b> ' + session.cleanUsername + '
+' +
+    '🆔 <b>UID:</b>
+' +
+    '<code>' + session.uid + '</code>
+' +
+    '📦 <b>Gói:</b> 6 Tháng
+' +
+    '💰 <b>Số tiền:</b> <code>60.000 VNĐ</code>
+' +
+    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>
+
+' +
+    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội
+' +
+    '🔢 <b>Số TK:</b> <code>3955555666666</code>
+' +
+    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>
+' +
+    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>
+
+' +
+    '📸 <b>HƯỚNG DẪN:</b> Quét mã QR bên trên hoặc chuyển khoản đúng số tiền & đúng nội dung. Sau đó <b>gửi ảnh chụp bill</b> vào đây để Admin duyệt ngay nhé! ❤️';
+
+  const paymentMarkup = Markup.inlineKeyboard([
+    [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
+    [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
+  ]);
+
+  await ctx.replyWithPhoto({ url: qrImageUrl }, {
+    caption: paymentCaption,
+    parse_mode: 'HTML',
+    ...paymentMarkup
+  });
+});
+
+// Xử lý khi khách chọn gói 1 năm
+bot.action('pkg_1y', async (ctx) => {
+  await ctx.answerCbQuery();
+  const userId = ctx.from.id;
+  const session = userSession.get(userId) || { cleanUsername: 'vinhht4905', displayName: '👻 🔥', uid: '2dz10mKITDbSSWYDiPiHtWTM4S02' };
+  
+  const orderId = Math.floor(10000000 + Math.random() * 90000000);
+  const transferSyntax = `LOCKET ${session.cleanUsername}`;
+  
+  // Link VietQR chuẩn cho Gói 1 Năm (100.000đ)
+  const qrImageUrl = `https://vietqr.app/img?acc=3955555666666&bank=MBBank&amount=100000&fullacc=true&holder=TRAN+TAN+PHUOC&store=Locket+Gold+Vip+Phuoc+Tran&template=compact&showinfo=true&addInfo=${encodeURIComponent(transferSyntax)}`;
+
+  const paymentCaption = 
+    '💳 <b>THANH TOÁN UP LOCKET GOLD (1 NĂM)</b>
+' +
+    '──────────────────────────────
+' +
+    '👤 <b>Username:</b> ' + session.cleanUsername + '
+' +
+    '🆔 <b>UID:</b>
+' +
+    '<code>' + session.uid + '</code>
+' +
+    '📦 <b>Gói:</b> 1 Năm
+' +
+    '💰 <b>Số tiền:</b> <code>100.000 VNĐ</code>
+' +
+    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>
+
+' +
+    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội
+' +
+    '🔢 <b>Số TK:</b> <code>3955555666666</code>
+' +
+    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>
+' +
+    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>
+
+' +
+    '📸 <b>HƯỚNG DẪN:</b> Quét mã QR bên trên hoặc chuyển khoản đúng số tiền & đúng nội dung. Sau đó <b>gửi ảnh chụp bill</b> vào đây để Admin duyệt ngay nhé! ❤️';
+
+  const paymentMarkup = Markup.inlineKeyboard([
+    [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
+    [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
+  ]);
+
+  await ctx.replyWithPhoto({ url: qrImageUrl }, {
+    caption: paymentCaption,
+    parse_mode: 'HTML',
+    ...paymentMarkup
+  });
+});
+
+bot.action('get_back', async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.reply('👉 Vui lòng gửi lại **Link hoặc Username Locket** của bạn để tiếp tục chọn gói nhé:', { parse_mode: 'HTML' });
+});
+
 bot.launch();
-console.log('Bot Locket Gold Thu Phí Chạy Mượt Mà!');
+console.log('Bot Locket Gold Pro Chạy Mượt Mà!');
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
