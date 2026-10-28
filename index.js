@@ -182,7 +182,6 @@ bot.on('text', async (ctx) => {
 bot.action('pkg_6m', async (ctx) => {
   await ctx.answerCbQuery();
   
-  // Tự động xoá tin nhắn menu cũ khi khách bấm thanh toán để khung chat gọn gàng
   try {
     await ctx.deleteMessage();
   } catch (e) {}
@@ -212,7 +211,8 @@ bot.action('pkg_6m', async (ctx) => {
 
   const paymentMarkup = Markup.inlineKeyboard([
     [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
-    [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
+    [Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'), Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')],
+    [Markup.button.url('✈️ Telegram Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
   ]);
 
   await ctx.replyWithPhoto({ url: qrImageUrl }, {
@@ -226,7 +226,6 @@ bot.action('pkg_6m', async (ctx) => {
 bot.action('pkg_1y', async (ctx) => {
   await ctx.answerCbQuery();
   
-  // Tự động xoá tin nhắn menu cũ khi khách bấm thanh toán để khung chat gọn gàng
   try {
     await ctx.deleteMessage();
   } catch (e) {}
@@ -256,7 +255,8 @@ bot.action('pkg_1y', async (ctx) => {
 
   const paymentMarkup = Markup.inlineKeyboard([
     [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
-    [Markup.button.url('💬 Liên Hệ Admin Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
+    [Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'), Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')],
+    [Markup.button.url('✈️ Telegram Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
   ]);
 
   await ctx.replyWithPhoto({ url: qrImageUrl }, {
