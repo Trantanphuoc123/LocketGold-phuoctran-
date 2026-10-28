@@ -215,7 +215,6 @@ async function handlePackageSelection(ctx, amount, pkgName) {
   userSession.set(userId, session);
 
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
-  // Sử dụng chuẩn api.vietqr.io để hiển thị thẳng ảnh QR lên chat và tự động điền số tiền, nội dung
   const qrImageUrl = `https://api.vietqr.io/image/3955555666666-compact2.jpg?accountName=TRAN%20TAN%20PHUOC&amount=${amount}&addInfo=${encodeURIComponent(transferSyntax)}`;
 
   const paymentCaption = 
