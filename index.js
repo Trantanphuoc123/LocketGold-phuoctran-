@@ -12,7 +12,7 @@ http.createServer((req, res) => {
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const userSession = new Map(); // userId -> { cleanUsername, displayName, uid, avatarUrl, selectedPkg, orderId }
-const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid, customerMsgId, adminMsgId }
+const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid, customerNoticeMsgId, adminMsgId }
 
 // Cố định ID của Admin (anh Phước)
 const ADMIN_ID = 1402351028;
@@ -312,8 +312,6 @@ bot.on('photo', async (ctx) => {
       try { await ctx.telegram.deleteMessage(ADMIN_ID, oldAdminMsgId); } catch (e) {}
     }
 
-    pendingOrders.set(orderId, { userId, username, pkg, uid });
-
     const photos = ctx.message.photo;
     const photoFileId = photos[photos.length - 1].file_id;
 
@@ -333,16 +331,26 @@ bot.on('photo', async (ctx) => {
       ]
     ]);
 
-    await ctx.telegram.sendPhoto(ADMIN_ID, photoFileId, {
+    const sentAdminMsg = await ctx.telegram.sendPhoto(ADMIN_ID, photoFileId, {
       caption: adminCaption,
       parse_mode: 'HTML',
       ...adminMarkup
     });
 
-    await ctx.reply(
+    const noticeMsg = await ctx.reply(
       '⏳ <b>Đã nhận được ảnh biên lai của bạn!</b>\nAdmin đang kiểm tra giao dịch và sẽ gửi cấu hình Locket Gold cho bạn trong giây lát. Bạn chờ chút xíu nhé! ❤️',
       { parse_mode: 'HTML' }
     );
+
+    // Lưu lại ID tin nhắn "Đã nhận được ảnh biên lai" của khách, CÒN BILL CỦA ADMIN THÌ GIỮ NGUYÊN (không xóa adminMsgId trong lúc duyệt)
+    pendingOrders.set(orderId, { 
+      userId, 
+      username, 
+      pkg, 
+      uid, 
+      customerNoticeMsgId: noticeMsg.message_id, 
+      adminMsgId: sentAdminMsg.message_id 
+    });
 
   } catch (err) {
     console.error('Lỗi xử lý ảnh bill:', err);
@@ -359,9 +367,27 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
     return ctx.reply('⚠️ Đơn hàng này không tồn tại hoặc đã được xử lý trước đó.');
   }
 
-  const { userId, username, pkg, uid } = order;
+  const { userId, username, pkg, uid, customerNoticeMsgId, adminMsgId } = order;
 
   try {
+    // 1. Chỉ tự động xóa dòng "⏳ Đã nhận được ảnh biên lai của bạn!" ở phía khách hàng
+    if (customerNoticeMsgId) {
+      try {
+        await ctx.telegram.deleteMessage(userId, customerNoticeMsgId);
+      } catch (e) {}
+    }
+
+    // 2. GIỮ NGUYÊN HÌNH BILL BÊN ADMIN (KHÔNG XÓA ADMIN MESSAGE ĐỂ ANH XEM LẠI LỊCH SỬ BILL)
+    // Chỉ cập nhật trạng thái trên ảnh bill của admin thành "ĐÃ DUYỆT ĐƠN" cho gọn
+    if (adminMsgId) {
+      try {
+        await ctx.editMessageCaption(
+          ctx.callbackQuery.message.caption + '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH CHO KHÁCH THÀNH CÔNG!</b>',
+          { parse_mode: 'HTML' }
+        );
+      } catch (e) {}
+    }
+
     const configUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?token=b68e2c860b21&uid=${uid}&username=${username}`;
 
     const successCaption = 
@@ -379,15 +405,11 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
       [Markup.button.callback('🔄 Tạo lại từ đầu', 'start_prompt')]
     ]);
 
+    // Gửi thông báo thành công kèm nút tải cấu hình cho khách
     await ctx.telegram.sendMessage(userId, successCaption, {
       parse_mode: 'HTML',
       ...successMarkup
     });
-
-    await ctx.editMessageCaption(
-      ctx.callbackQuery.message.caption + '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH CHO KHÁCH THÀNH CÔNG!</b>',
-      { parse_mode: 'HTML' }
-    );
 
     pendingOrders.delete(orderId);
   } catch (err) {
@@ -396,13 +418,29 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
   }
 });
 
-// Admin bấm nút **[X] Menu** hoặc nút từ chối
+// Admin bấm nút Từ chối
 bot.action(/^reject_(\d+)$/, async (ctx) => {
   await ctx.answerCbQuery('Đã từ chối đơn hàng.');
   const orderId = Number(ctx.match[1]);
   const order = pendingOrders.get(orderId);
 
   if (order) {
+    const { userId, customerNoticeMsgId, adminMsgId } = order;
+    
+    // Xóa thông báo chờ của khách
+    if (customerNoticeMsgId) {
+      try { await ctx.telegram.deleteMessage(userId, customerNoticeMsgId); } catch (e) {}
+    }
+    // Cập nhật trạng thái từ chối trên ảnh bill của admin
+    if (adminMsgId) {
+      try {
+        await ctx.editMessageCaption(
+          ctx.callbackQuery.message.caption + '\n\n❌ <b>ĐÃ TỪ CHỐI ĐƠN HÀNG NÀY!</b>',
+          { parse_mode: 'HTML' }
+        );
+      } catch (e) {}
+    }
+
     try {
       await ctx.telegram.sendMessage(
         order.userId,
@@ -412,11 +450,6 @@ bot.action(/^reject_(\d+)$/, async (ctx) => {
     } catch (e) {}
     pendingOrders.delete(orderId);
   }
-
-  await ctx.editMessageCaption(
-    ctx.callbackQuery.message.caption + '\n\n❌ <b>ĐÃ TỪ CHỐI ĐƠN HÀNG NÀY!</b>',
-    { parse_mode: 'HTML' }
-  );
 });
 
 bot.action('show_guide_customer', async (ctx) => {
