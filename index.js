@@ -30,7 +30,7 @@ const guideText =
 
 bot.start((ctx) => {
   ctx.reply(
-    '🔥 Hé lô mấy ní!\n\nĐã ghé đến đây chắc chắn là muốn "flex" Locket Gold VIP rồi chứ gì? Chiều lòng mấy ní hết nấc luôn ✨\n👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây để bắt đầu kiểm tra tài khoản nhé!',
+    '👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây để bắt đầu kiểm tra tài khoản nhé:',
     {
       parse_mode: 'HTML',
       ...Markup.inlineKeyboard([
@@ -88,7 +88,6 @@ bot.on('text', async (ctx) => {
       });
       const html = response.data;
       
-      // Lấy ảnh thật từ thẻ profile-pic-img
       const imgTagMatch = html.match(/class="profile-pic-img"[^>]*src="([^"]+)"/);
       if (imgTagMatch && imgTagMatch[1]) {
         avatarUrl = imgTagMatch[1].replace(/&amp;/g, '&');
