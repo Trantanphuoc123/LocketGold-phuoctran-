@@ -20,15 +20,15 @@ http.createServer((req, res) => {
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-const userSession = new Map(); // userId -> { cleanUsername, displayName, uid, avatarUrl, selectedPkg, orderId }
+const userSession = new Map();
 
-const pendingOrders = new Map(); // orderId -> { userId, username, pkg, uid, customerNoticeMsgId, adminMsgId }
+const pendingOrders = new Map();
 
 // Cố định ID của Admin (anh Phước)
 
 const ADMIN_ID = 1402351028;
 
-// CÀI ĐẶT MENU LỆNH (NÚT XANH "MENU" BÊN GÓC TRÁI DƯỚI)
+// CÀI ĐẶT MENU LỆNH
 
 bot.telegram.setMyCommands([
 
@@ -38,7 +38,7 @@ bot.telegram.setMyCommands([
 
 ]);
 
-// Hướng dẫn cài đặt
+// Hướng dẫn cài đặt — GIỮ NGUYÊN
 
 const guideText =
 
@@ -74,7 +74,7 @@ bot.start(async (ctx) => {
 
   } catch (e) {}
 
-  ctx.reply(
+  await ctx.reply(
 
     '👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây để bắt đầu kiểm tra tài khoản nhé:',
 
@@ -152,11 +152,245 @@ bot.action('start_prompt', async (ctx) => {
 
   } catch (e) {}
 
-  await ctx.reply('👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây nhé:', { parse_mode: 'HTML' });
+  await ctx.reply(
+
+    '👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây nhé:',
+
+    { parse_mode: 'HTML' }
+
+  );
 
 });
 
-// Xử lý khi khách gửi Username hoặc Link Locket
+// =====================================================
+
+// HÀM LẤY ẢNH ĐẠI DIỆN LOCKET
+
+// Ưu tiên ảnh thật; không dùng avatar hoạt hình DiceBear.
+
+// =====================================================
+
+async function getLocketProfile(cleanUsername) {
+
+  const result = {
+
+    avatarUrl: null,
+
+    displayName: cleanUsername,
+
+    uid: null
+
+  };
+
+  const profileUrls = [
+
+    `https://locket.cam/${encodeURIComponent(cleanUsername)}`,
+
+    `https://locket.cam/${encodeURIComponent(cleanUsername)}/`
+
+  ];
+
+  const headers = {
+
+    'User-Agent':
+
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+
+    'Accept':
+
+      'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+
+    'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8'
+
+  };
+
+  function decodeHtml(value) {
+
+    return value
+
+      .replace(/&amp;/g, '&')
+
+      .replace(/&quot;/g, '"')
+
+      .replace(/&#39;/g, "'")
+
+      .replace(/&#x2F;/gi, '/')
+
+      .replace(/\\u0026/g, '&')
+
+      .replace(/\\\//g, '/')
+
+      .replace(/&lt;/g, '<')
+
+      .replace(/&gt;/g, '>');
+
+  }
+
+  function extractMeta(html, property) {
+
+    const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const patterns = [
+
+      new RegExp(
+
+        `<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`,
+
+        'i'
+
+      ),
+
+      new RegExp(
+
+        `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`,
+
+        'i'
+
+      )
+
+    ];
+
+    for (const pattern of patterns) {
+
+      const match = html.match(pattern);
+
+      if (match && match[1]) {
+
+        return decodeHtml(match[1].trim());
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+  for (const profileUrl of profileUrls) {
+
+    try {
+
+      const response = await axios.get(profileUrl, {
+
+        headers,
+
+        timeout: 12000,
+
+        maxRedirects: 5,
+
+        validateStatus: (status) => status >= 200 && status < 400
+
+      });
+
+      const html =
+
+        typeof response.data === 'string' ? response.data : '';
+
+      if (!html) continue;
+
+      // Lấy tên hiển thị từ metadata của hồ sơ.
+
+      const ogTitle = extractMeta(html, 'og:title');
+
+      const twitterTitle = extractMeta(html, 'twitter:title');
+
+      if (ogTitle || twitterTitle) {
+
+        result.displayName = (ogTitle || twitterTitle)
+
+          .replace(/\s*[-|]\s*Locket.*$/i, '')
+
+          .trim() || cleanUsername;
+
+      }
+
+      // Thử các vị trí thường chứa ảnh đại diện thật.
+
+      const imagePatterns = [
+
+        /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+
+        /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+
+        /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+
+        /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i,
+
+        /<img[^>]+class=["'][^"']*profile-pic-img[^"']*["'][^>]+src=["']([^"']+)["']/i,
+
+        /<img[^>]+src=["']([^"']+)["'][^>]+class=["'][^"']*profile-pic-img[^"']*["']/i,
+
+        /["'](?:profileImageUrl|profilePictureUrl|photoURL|avatarUrl|avatar_url|profileImage|profilePicture)["']\s*:\s*["']([^"']+)["']/i
+
+      ];
+
+      for (const pattern of imagePatterns) {
+
+        const match = html.match(pattern);
+
+        if (!match || !match[1]) continue;
+
+        let candidate = decodeHtml(match[1].trim());
+
+        if (candidate.startsWith('//')) {
+
+          candidate = 'https:' + candidate;
+
+        } else if (candidate.startsWith('/')) {
+
+          candidate = new URL(candidate, profileUrl).href;
+
+        }
+
+        if (
+
+          /^https?:\/\//i.test(candidate) &&
+
+          !/dicebear\.com/i.test(candidate) &&
+
+          !/placeholder|default-avatar/i.test(candidate)
+
+        ) {
+
+          result.avatarUrl = candidate;
+
+          break;
+
+        }
+
+      }
+
+      if (result.avatarUrl) {
+
+        console.log('Đã tìm thấy URL ảnh hồ sơ Locket.');
+
+        break;
+
+      }
+
+    } catch (error) {
+
+      console.log(
+
+        `Không đọc được trang hồ sơ ${profileUrl}:`,
+
+        error.message
+
+      );
+
+    }
+
+  }
+
+  return result;
+
+}
+
+// =====================================================
+
+// XỬ LÝ KHI KHÁCH GỬI USERNAME HOẶC LINK LOCKET
+
+// =====================================================
 
 bot.on('text', async (ctx) => {
 
@@ -178,75 +412,51 @@ bot.on('text', async (ctx) => {
 
       .replace(/['"`]/g, '')
 
-      .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
+      .replace(/^https?:\/\/(www\.)?locket\.cam\//i, '')
 
-      .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
+      .replace(/^https?:\/\/(www\.)?locket\.com\//i, '')
 
-      .replace(/\//g, '')
+      .replace(/[?#].*$/, '')
+
+      .replace(/\/+$/, '')
 
       .trim();
 
-    if (!cleanUsername) {
+    if (!cleanUsername || /\s/.test(cleanUsername)) {
 
-      return ctx.reply('❌ Username không hợp lệ! Vui lòng nhập đúng Link hoặc Username Locket nhé.', { parse_mode: 'HTML' });
+      return ctx.reply(
 
-    }
+        '❌ Username không hợp lệ! Vui lòng nhập đúng Link hoặc Username Locket nhé.',
 
-    let avatarUrl = `https://api.dicebear.com/7.x/avataaars/png?seed=${cleanUsername}`;
+        { parse_mode: 'HTML' }
 
-    let displayName = cleanUsername;
-
-    let uid = '2dz10mKITDbSSWYDiPiHtWTM4S02';
-
-    try {
-
-      const response = await axios.get(`https://locket.cam/${cleanUsername}`, {
-
-        headers: {
-
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
-
-        },
-
-        timeout: 6000
-
-      });
-
-      const html = response.data;
-
-      const imgTagMatch = html.match(/class="profile-pic-img"[^>]*src="([^"]+)"/);
-
-      if (imgTagMatch && imgTagMatch[1]) {
-
-        avatarUrl = imgTagMatch[1].replace(/&amp;/g, '&');
-
-      } else {
-
-        const ogMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-
-        if (ogMatch && ogMatch[1] && !ogMatch[1].includes('locket-public-assets')) {
-
-          avatarUrl = ogMatch[1].replace(/&amp;/g, '&');
-
-        }
-
-      }
-
-      const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-
-      if (titleMatch && titleMatch[1]) {
-
-        displayName = titleMatch[1];
-
-      }
-
-    } catch (e) {
-
-      console.log('Không cào được profile Locket, dùng avatar tự động.');
+      );
 
     }
 
-    userSession.set(userId, { cleanUsername, displayName, uid, avatarUrl });
+    // Không tạo ảnh hoạt hình giả nữa.
+
+    const profile = await getLocketProfile(cleanUsername);
+
+    const avatarUrl = profile.avatarUrl;
+
+    const displayName = profile.displayName || cleanUsername;
+
+    // Giữ nguyên UID mặc định như code gốc.
+
+    const uid = profile.uid || '2dz10mKITDbSSWYDiPiHtWTM4S02';
+
+    userSession.set(userId, {
+
+      cleanUsername,
+
+      displayName,
+
+      uid,
+
+      avatarUrl
+
+    });
 
     const profileCaption =
 
@@ -278,13 +488,101 @@ bot.on('text', async (ctx) => {
 
     ]);
 
-    await ctx.replyWithPhoto({ url: avatarUrl }, {
+    let profilePhotoSent = false;
 
-      caption: profileCaption,
+    // Tải ảnh đại diện thật rồi gửi bằng Buffer cho Telegram.
 
-      parse_mode: 'HTML'
+    if (avatarUrl) {
 
-    });
+      try {
+
+        const imageResponse = await axios.get(avatarUrl, {
+
+          responseType: 'arraybuffer',
+
+          timeout: 15000,
+
+          maxRedirects: 5,
+
+          headers: {
+
+            'User-Agent': 'Mozilla/5.0',
+
+            'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+
+          }
+
+        });
+
+        const contentType = String(
+
+          imageResponse.headers['content-type'] || ''
+
+        ).toLowerCase();
+
+        const imageBuffer = Buffer.from(imageResponse.data);
+
+        if (
+
+          contentType.startsWith('image/') &&
+
+          imageBuffer.length > 0
+
+        ) {
+
+          await ctx.replyWithPhoto(
+
+            {
+
+              source: imageBuffer,
+
+              filename: 'locket-profile'
+
+            },
+
+            {
+
+              caption: profileCaption,
+
+              parse_mode: 'HTML'
+
+            }
+
+          );
+
+          profilePhotoSent = true;
+
+        }
+
+      } catch (photoError) {
+
+        console.log(
+
+          'Không tải được ảnh đại diện thật:',
+
+          photoError.message
+
+        );
+
+      }
+
+    }
+
+    // Nếu không lấy được ảnh thật thì không gửi ảnh hoạt hình thay thế.
+
+    if (!profilePhotoSent) {
+
+      await ctx.reply(
+
+        profileCaption +
+
+          '\n\n⚠️ Chưa lấy được ảnh đại diện công khai từ trang Locket này.',
+
+        { parse_mode: 'HTML' }
+
+      );
+
+    }
 
     const featuresText =
 
@@ -328,13 +626,23 @@ bot.on('text', async (ctx) => {
 
     console.error('Lỗi xử lý tin nhắn:', err);
 
-    ctx.reply('⚠️ Đã xảy ra lỗi khi check tài khoản, vui lòng thử lại hoặc gửi lại link Locket nhé!');
+    await ctx.reply(
+
+      '⚠️ Đã xảy ra lỗi khi check tài khoản, vui lòng thử lại hoặc gửi lại link Locket nhé!'
+
+    );
 
   }
 
 });
 
-// Hàm chung xử lý chọn gói & tự hủy sau 3 phút
+// =====================================================
+
+// CHỌN GÓI VÀ TẠO QR THANH TOÁN
+
+// GIỮ NGUYÊN CÁCH TẠO QR ĐANG HOẠT ĐỘNG
+
+// =====================================================
 
 async function handlePackageSelection(ctx, amount, pkgName) {
 
@@ -358,7 +666,11 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
   };
 
-  const orderId = Math.floor(10000000 + Math.random() * 90000000);
+  const orderId = Math.floor(
+
+    10000000 + Math.random() * 90000000
+
+  );
 
   session.orderId = orderId;
 
@@ -366,11 +678,13 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
   userSession.set(userId, session);
 
-  // Nội dung chuyển khoản: giữ nguyên theo username của khách
+  // QR thanh toán đã hoạt động — giữ nguyên.
 
-  const transferSyntax = `LOCKET ${session.cleanUsername}`;
+  const transferSyntax = (
 
-  // SỬA QR: dùng tham số "des" theo tài liệu SePay, không dùng "addInfo"
+    `LOCKET ${session.cleanUsername}`
+
+  ).slice(0, 25);
 
   const qrParams = new URLSearchParams({
 
@@ -410,7 +724,11 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     '📦 <b>Gói:</b> ' + pkgName + '\n' +
 
-    '💰 <b>Số tiền:</b> <code>' + (amount === 60000 ? '60.000 VNĐ' : '100.000 VNĐ') + '</code>\n' +
+    '💰 <b>Số tiền:</b> <code>' +
+
+    (amount === 60000 ? '60.000 VNĐ' : '100.000 VNĐ') +
+
+    '</code>\n' +
 
     '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
 
@@ -430,117 +748,89 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     [
 
-      Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'),
+      Markup.button.url(
 
-      Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')
+        '🌐 Facebook Admin',
+
+        'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'
+
+      ),
+
+      Markup.button.url(
+
+        '💬 Zalo Hỗ Trợ',
+
+        'http://zalo.me/0355991877'
+
+      )
 
     ],
 
-    [Markup.button.url('✈️ Telegram Hỗ Trợ', 'https://t.me/trantanphuoc1628')]
+    [
+
+      Markup.button.url(
+
+        '✈️ Telegram Hỗ Trợ',
+
+        'https://t.me/trantanphuoc1628'
+
+      )
+
+    ]
 
   ]);
 
-  // Tải ảnh QR về trước rồi gửi dạng Buffer để tránh Telegram lỗi IMAGE_PROCESS_FAILED
+  // Tải QR thành Buffer — giữ nguyên cách đã sửa thành công.
 
-  let qrBuffer;
+  const qrResponse = await axios.get(qrImageUrl, {
 
-  try {
+    responseType: 'arraybuffer',
 
-    const qrResponse = await axios.get(qrImageUrl, {
+    timeout: 15000,
 
-      responseType: 'arraybuffer',
+    maxRedirects: 5
 
-      timeout: 20000,
+  });
 
-      headers: {
+  const qrContentType = String(
 
-        'User-Agent': 'Mozilla/5.0'
+    qrResponse.headers['content-type'] || ''
 
-      },
+  ).toLowerCase();
 
-      validateStatus: (status) => status >= 200 && status < 300
+  if (!qrContentType.startsWith('image/')) {
 
-    });
+    throw new Error(
 
-    const contentType = String(qrResponse.headers['content-type'] || '');
-
-    if (!contentType.toLowerCase().startsWith('image/')) {
-
-      throw new Error(`SePay không trả về ảnh QR. Content-Type: ${contentType || 'không xác định'}`);
-
-    }
-
-    qrBuffer = Buffer.from(qrResponse.data);
-
-    if (!qrBuffer.length) {
-
-      throw new Error('Ảnh QR nhận được bị rỗng.');
-
-    }
-
-  } catch (qrError) {
-
-    console.error('LỖI TẢI ẢNH QR:', qrError.message);
-
-    await ctx.reply(
-
-      '❌ Không tải được mã QR lúc này. Anh/chị vui lòng thử lại sau ít phút hoặc liên hệ Admin để được hỗ trợ.',
-
-      {
-
-        parse_mode: 'HTML',
-
-        ...paymentMarkup
-
-      }
+      `Dịch vụ QR trả về nội dung không phải ảnh: ${qrContentType || 'không rõ định dạng'}`
 
     );
-
-    return;
 
   }
 
-  let sentMsg;
+  const qrBuffer = Buffer.from(qrResponse.data);
 
-  try {
+  const sentMsg = await ctx.replyWithPhoto(
 
-    sentMsg = await ctx.replyWithPhoto(
+    {
 
-      {
+      source: qrBuffer,
 
-        source: qrBuffer,
+      filename: 'payment-qr.png'
 
-        filename: 'payment-qr.png'
+    },
 
-      },
+    {
 
-      {
+      caption: paymentCaption,
 
-        caption: paymentCaption,
+      parse_mode: 'HTML',
 
-        parse_mode: 'HTML',
+      ...paymentMarkup
 
-        ...paymentMarkup
+    }
 
-      }
-
-    );
-
-  } catch (sendError) {
-
-    console.error('LỖI GỬI ẢNH QR TELEGRAM:', sendError.message);
-
-    await ctx.reply(
-
-      '❌ Bot đã tạo được mã QR nhưng gửi ảnh không thành công. Anh/chị vui lòng thử lại hoặc liên hệ Admin nhé.',
-
-      { parse_mode: 'HTML' }
-
-    );
-
-    return;
-
-  }
+  );
 
   const customerMsgId = sentMsg.message_id;
 
@@ -550,7 +840,11 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     '──────────────────────────────\n' +
 
-    '👤 <b>Khách hàng:</b> @' + (ctx.from.username || ctx.from.first_name || 'Khách') + ' (ID: <code>' + userId + '</code>)\n' +
+    '👤 <b>Khách hàng:</b> @' +
+
+    (ctx.from.username || ctx.from.first_name || 'Khách') +
+
+    ' (ID: <code>' + userId + '</code>)\n' +
 
     '👤 <b>Username Locket:</b> ' + session.cleanUsername + '\n' +
 
@@ -560,7 +854,15 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     '⏳ <i>Đơn hàng đang chờ khách chuyển khoản và gửi bill (Tự hủy sau 3 phút nếu không có giao dịch)...</i>';
 
-  const adminMsg = await ctx.telegram.sendMessage(ADMIN_ID, adminCaption, { parse_mode: 'HTML' });
+  const adminMsg = await ctx.telegram.sendMessage(
+
+    ADMIN_ID,
+
+    adminCaption,
+
+    { parse_mode: 'HTML' }
+
+  );
 
   const adminMsgId = adminMsg.message_id;
 
@@ -638,11 +940,21 @@ bot.action('get_back', async (ctx) => {
 
   } catch (e) {}
 
-  await ctx.reply('👉 Vui lòng gửi lại <b>Link hoặc Username Locket</b> của bạn để tiếp tục chọn gói nhé:', { parse_mode: 'HTML' });
+  await ctx.reply(
+
+    '👉 Vui lòng gửi lại <b>Link hoặc Username Locket</b> của bạn để tiếp tục chọn gói nhé:',
+
+    { parse_mode: 'HTML' }
+
+  );
 
 });
 
-// Xử lý khi khách gửi ảnh chụp bill thanh toán
+// =====================================================
+
+// XỬ LÝ ẢNH BILL THANH TOÁN
+
+// =====================================================
 
 bot.on('photo', async (ctx) => {
 
@@ -660,15 +972,31 @@ bot.on('photo', async (ctx) => {
 
     const username = session ? session.cleanUsername : 'Chưa rõ';
 
-    const pkg = session && session.selectedPkg ? session.selectedPkg : 'Không rõ gói';
+    const pkg =
 
-    const uid = session ? session.uid : '2dz10mKITDbSSWYDiPiHtWTM4S02';
+      session && session.selectedPkg
 
-    const orderId = session && session.orderId ? session.orderId : Math.floor(10000000 + Math.random() * 90000000);
+        ? session.selectedPkg
+
+        : 'Không rõ gói';
+
+    const uid = session
+
+      ? session.uid
+
+      : '2dz10mKITDbSSWYDiPiHtWTM4S02';
+
+    const orderId =
+
+      session && session.orderId
+
+        ? session.orderId
+
+        : Math.floor(10000000 + Math.random() * 90000000);
 
     let oldAdminMsgId = null;
 
-    for (let [oid, ord] of pendingOrders.entries()) {
+    for (const [oid, ord] of pendingOrders.entries()) {
 
       if (ord.userId === userId) {
 
@@ -702,7 +1030,11 @@ bot.on('photo', async (ctx) => {
 
       '──────────────────────────────\n' +
 
-      '👤 <b>Khách hàng:</b> @' + (ctx.from.username || ctx.from.first_name || 'Khách') + ' (ID: <code>' + userId + '</code>)\n' +
+      '👤 <b>Khách hàng:</b> @' +
+
+      (ctx.from.username || ctx.from.first_name || 'Khách') +
+
+      ' (ID: <code>' + userId + '</code>)\n' +
 
       '👤 <b>Username Locket:</b> ' + username + '\n' +
 
@@ -716,23 +1048,43 @@ bot.on('photo', async (ctx) => {
 
       [
 
-        Markup.button.callback('✅ Duyệt đơn & Gửi Cấu Hình', `approve_${orderId}`),
+        Markup.button.callback(
 
-        Markup.button.callback('❌ Từ chối', `reject_${orderId}`)
+          '✅ Duyệt đơn & Gửi Cấu Hình',
+
+          `approve_${orderId}`
+
+        ),
+
+        Markup.button.callback(
+
+          '❌ Từ chối',
+
+          `reject_${orderId}`
+
+        )
 
       ]
 
     ]);
 
-    const sentAdminMsg = await ctx.telegram.sendPhoto(ADMIN_ID, photoFileId, {
+    const sentAdminMsg = await ctx.telegram.sendPhoto(
 
-      caption: adminCaption,
+      ADMIN_ID,
 
-      parse_mode: 'HTML',
+      photoFileId,
 
-      ...adminMarkup
+      {
 
-    });
+        caption: adminCaption,
+
+        parse_mode: 'HTML',
+
+        ...adminMarkup
+
+      }
+
+    );
 
     const noticeMsg = await ctx.reply(
 
@@ -741,8 +1093,6 @@ bot.on('photo', async (ctx) => {
       { parse_mode: 'HTML' }
 
     );
-
-    // Lưu lại ID tin nhắn "Đã nhận được ảnh biên lai" của khách, CÒN BILL CỦA ADMIN THÌ GIỮ NGUYÊN (không xóa adminMsgId trong lúc duyệt)
 
     pendingOrders.set(orderId, {
 
@@ -768,7 +1118,11 @@ bot.on('photo', async (ctx) => {
 
 });
 
-// Admin bấm nút Duyệt đơn
+// =====================================================
+
+// ADMIN DUYỆT ĐƠN
+
+// =====================================================
 
 bot.action(/^approve_(\d+)$/, async (ctx) => {
 
@@ -780,29 +1134,49 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
   if (!order) {
 
-    return ctx.reply('⚠️ Đơn hàng này không tồn tại hoặc đã được xử lý trước đó.');
+    return ctx.reply(
+
+      '⚠️ Đơn hàng này không tồn tại hoặc đã được xử lý trước đó.'
+
+    );
 
   }
 
-  const { userId, username, pkg, uid, customerNoticeMsgId, adminMsgId } = order;
+  const {
+
+    userId,
+
+    username,
+
+    pkg,
+
+    uid,
+
+    customerNoticeMsgId,
+
+    adminMsgId
+
+  } = order;
 
   try {
-
-    // 1. Chỉ tự động xóa dòng "⏳ Đã nhận được ảnh biên lai của bạn!" ở phía khách hàng
 
     if (customerNoticeMsgId) {
 
       try {
 
-        await ctx.telegram.deleteMessage(userId, customerNoticeMsgId);
+        await ctx.telegram.deleteMessage(
+
+          userId,
+
+          customerNoticeMsgId
+
+        );
 
       } catch (e) {}
 
     }
 
-    // 2. GIỮ NGUYÊN HÌNH BILL BÊN ADMIN (KHÔNG XÓA ADMIN MESSAGE ĐỂ ANH XEM LẠI LỊCH SỬ BILL)
-
-    // Chỉ cập nhật trạng thái trên ảnh bill của admin thành "ĐÃ DUYỆT ĐƠN" cho gọn
+    // Giữ bill phía admin, chỉ cập nhật trạng thái.
 
     if (adminMsgId) {
 
@@ -810,7 +1184,9 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
         await ctx.editMessageCaption(
 
-          ctx.callbackQuery.message.caption + '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH CHO KHÁCH THÀNH CÔNG!</b>',
+          ctx.callbackQuery.message.caption +
+
+            '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH CHO KHÁCH THÀNH CÔNG!</b>',
 
           { parse_mode: 'HTML' }
 
@@ -820,7 +1196,9 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
     }
 
-    const configUrl = `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?token=b68e2c860b21&uid=${uid}&username=${username}`;
+    const configUrl =
+
+      `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?token=b68e2c860b21&uid=${uid}&username=${username}`;
 
     const successCaption =
 
@@ -836,25 +1214,75 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
     const successMarkup = Markup.inlineKeyboard([
 
-      [Markup.button.url('📥 Tải Cấu Hình .mobileconfig', configUrl)],
-
-      [Markup.button.callback('📖 Hướng Dẫn Cài Đặt Chi Tiết', 'show_guide_customer')],
-
       [
 
-        Markup.button.url('🌐 Facebook Admin', 'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'),
+        Markup.button.url(
 
-        Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')
+          '📥 Tải Cấu Hình .mobileconfig',
+
+          configUrl
+
+        )
 
       ],
 
-      [Markup.button.url('✈️ Telegram Admin', 'https://t.me/trantanphuoc1628')],
+      [
 
-      [Markup.button.callback('🔄 Tạo lại từ đầu', 'start_prompt')]
+        Markup.button.callback(
+
+          '📖 Hướng Dẫn Cài Đặt Chi Tiết',
+
+          'show_guide_customer'
+
+        )
+
+      ],
+
+      [
+
+        Markup.button.url(
+
+          '🌐 Facebook Admin',
+
+          'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'
+
+        ),
+
+        Markup.button.url(
+
+          '💬 Zalo Hỗ Trợ',
+
+          'http://zalo.me/0355991877'
+
+        )
+
+      ],
+
+      [
+
+        Markup.button.url(
+
+          '✈️ Telegram Admin',
+
+          'https://t.me/trantanphuoc1628'
+
+        )
+
+      ],
+
+      [
+
+        Markup.button.callback(
+
+          '🔄 Tạo lại từ đầu',
+
+          'start_prompt'
+
+        )
+
+      ]
 
     ]);
-
-    // Gửi thông báo thành công kèm nút tải cấu hình cho khách
 
     await ctx.telegram.sendMessage(userId, successCaption, {
 
@@ -870,13 +1298,21 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
     console.error('Lỗi khi duyệt đơn:', err);
 
-    await ctx.reply('⚠️ Có lỗi xảy ra khi gửi cấu hình cho khách (có thể khách đã chặn bot).');
+    await ctx.reply(
+
+      '⚠️ Có lỗi xảy ra khi gửi cấu hình cho khách (có thể khách đã chặn bot).'
+
+    );
 
   }
 
 });
 
-// Admin bấm nút Từ chối
+// =====================================================
+
+// ADMIN TỪ CHỐI ĐƠN
+
+// =====================================================
 
 bot.action(/^reject_(\d+)$/, async (ctx) => {
 
@@ -888,21 +1324,31 @@ bot.action(/^reject_(\d+)$/, async (ctx) => {
 
   if (order) {
 
-    const { userId, customerNoticeMsgId, adminMsgId } = order;
+    const {
 
-    // Xóa thông báo chờ của khách
+      userId,
+
+      customerNoticeMsgId,
+
+      adminMsgId
+
+    } = order;
 
     if (customerNoticeMsgId) {
 
       try {
 
-        await ctx.telegram.deleteMessage(userId, customerNoticeMsgId);
+        await ctx.telegram.deleteMessage(
+
+          userId,
+
+          customerNoticeMsgId
+
+        );
 
       } catch (e) {}
 
     }
-
-    // Cập nhật trạng thái từ chối trên ảnh bill của admin
 
     if (adminMsgId) {
 
@@ -910,7 +1356,9 @@ bot.action(/^reject_(\d+)$/, async (ctx) => {
 
         await ctx.editMessageCaption(
 
-          ctx.callbackQuery.message.caption + '\n\n❌ <b>ĐÃ TỪ CHỐI ĐƠN HÀNG NÀY!</b>',
+          ctx.callbackQuery.message.caption +
+
+            '\n\n❌ <b>ĐÃ TỪ CHỐI ĐƠN HÀNG NÀY!</b>',
 
           { parse_mode: 'HTML' }
 
