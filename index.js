@@ -24,11 +24,7 @@ const userSession = new Map();
 
 const pendingOrders = new Map();
 
-// Cố định ID của Admin (anh Phước)
-
 const ADMIN_ID = 1402351028;
-
-// CÀI ĐẶT MENU LỆNH
 
 bot.telegram.setMyCommands([
 
@@ -37,8 +33,6 @@ bot.telegram.setMyCommands([
   { command: 'guide', description: '📖 Hướng dẫn cài đặt chi tiết' }
 
 ]);
-
-// Hướng dẫn cài đặt — giữ nguyên nội dung
 
 const guideText =
 
@@ -93,8 +87,6 @@ bot.start(async (ctx) => {
   );
 
 });
-
-// Lệnh /guide
 
 bot.command('guide', async (ctx) => {
 
@@ -168,11 +160,87 @@ function normalizeUsername(value) {
 
   return String(value || '')
 
-    .replace(/^@/, '')
-
     .trim()
 
+    .replace(/^@/, '')
+
+    .replace(/\/+$/, '')
+
     .toLowerCase();
+
+}
+
+// Chuẩn hóa username nhập từ link hoặc tên tài khoản
+
+function extractUsername(value) {
+
+  let input = String(value || '').trim();
+
+  input = input.replace(/['"`]/g, '');
+
+  try {
+
+    if (/^https?:\/\//i.test(input)) {
+
+      const parsed = new URL(input);
+
+      if (
+
+        parsed.hostname === 'locket.cam' ||
+
+        parsed.hostname === 'www.locket.cam' ||
+
+        parsed.hostname === 'locket.com' ||
+
+        parsed.hostname === 'www.locket.com'
+
+      ) {
+
+        input = parsed.pathname;
+
+      }
+
+    }
+
+  } catch (e) {}
+
+  input = input
+
+    .replace(/^https?:\/\/(www\.)?locket\.(cam|com)\//i, '')
+
+    .split(/[?#]/)[0]
+
+    .replace(/^\/+|\/+$/g, '')
+
+    .replace(/^@/, '')
+
+    .trim();
+
+  // Chỉ lấy phần username đầu tiên trong đường dẫn
+
+  input = input.split('/')[0].trim();
+
+  return input;
+
+}
+
+// Giải mã một số HTML entity thường gặp
+
+function decodeHtml(value) {
+
+  return String(value || '')
+
+    .replace(/&amp;/gi, '&')
+
+    .replace(/&#38;/g, '&')
+
+    .replace(/&quot;/gi, '"')
+
+    .replace(/&#39;/g, "'")
+
+    .replace(/&lt;/gi, '<')
+
+    .replace(/&gt;/gi, '>');
 
 }
 
@@ -182,17 +250,155 @@ function isValidAvatarUrl(value) {
 
   try {
 
-    const parsed = new URL(value);
+    const parsed = new URL(decodeHtml(value));
 
-    return parsed.protocol === 'https:' &&
+    return (
 
-      !parsed.hostname.includes('locket-public-assets');
+      parsed.protocol === 'https:' &&
+
+      (
+
+        parsed.hostname === 'cdn2.locketcamera.com' ||
+
+        parsed.hostname.endsWith('.locketcamera.com') ||
+
+        parsed.hostname.endsWith('.googleusercontent.com') ||
+
+        parsed.hostname.endsWith('.firebasestorage.googleapis.com')
+
+      ) &&
+
+      !parsed.pathname.includes('locket-public-assets')
+
+    );
 
   } catch (e) {
 
     return false;
 
   }
+
+}
+
+// Lấy thuộc tính từ một thẻ HTML, không phụ thuộc thứ tự thuộc tính
+
+function getHtmlAttribute(tag, attributeName) {
+
+  const escapedName = attributeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const regex = new RegExp(
+
+    '(?:^|\\s)' + escapedName + '\\s*=\\s*(?:"([^"]*)"|\\\'([^\\\']*)\\\'|([^\\s>]+))',
+
+    'i'
+
+  );
+
+  const match = String(tag || '').match(regex);
+
+  if (!match) return null;
+
+  return decodeHtml(match[1] || match[2] || match[3] || '');
+
+}
+
+// Tìm URL avatar trong HTML trang Locket
+
+function findAvatarInHtml(html) {
+
+  if (typeof html !== 'string' || !html) return null;
+
+  // Ưu tiên ảnh profile-pic-img
+
+  const imgTags = html.match(/<img\b[^>]*>/gi) || [];
+
+  for (const tag of imgTags) {
+
+    const className = getHtmlAttribute(tag, 'class') || '';
+
+    if (className.split(/\s+/).includes('profile-pic-img')) {
+
+      const src =
+
+        getHtmlAttribute(tag, 'src') ||
+
+        getHtmlAttribute(tag, 'data-src');
+
+      if (src && isValidAvatarUrl(src)) {
+
+        return src;
+
+      }
+
+    }
+
+  }
+
+  // Dự phòng: tìm thẻ meta og:image
+
+  const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
+
+  for (const tag of metaTags) {
+
+    const property =
+
+      getHtmlAttribute(tag, 'property') ||
+
+      getHtmlAttribute(tag, 'name');
+
+    if (String(property || '').toLowerCase() === 'og:image') {
+
+      const content = getHtmlAttribute(tag, 'content');
+
+      if (content && isValidAvatarUrl(content)) {
+
+        return content;
+
+      }
+
+    }
+
+  }
+
+  // Dự phòng: tìm URL ảnh Locket trong HTML đã tải
+
+  const urlMatches = html.match(
+
+    /https?:\\?\/\\?\/cdn2\.locketcamera\.com[^"'\\\s<>]+/gi
+
+  ) || [];
+
+  for (const rawUrl of urlMatches) {
+
+    const candidate = decodeHtml(rawUrl).replace(/\\\//g, '/');
+
+    if (isValidAvatarUrl(candidate)) {
+
+      return candidate;
+
+    }
+
+  }
+
+  return null;
+
+}
+
+// Lấy danh sách user từ các cấu trúc JSON phổ biến
+
+function extractUsersFromApi(data) {
+
+  if (Array.isArray(data)) return data;
+
+  if (Array.isArray(data?.users)) return data.users;
+
+  if (Array.isArray(data?.data)) return data.data;
+
+  if (Array.isArray(data?.data?.users)) return data.data.users;
+
+  if (Array.isArray(data?.result?.users)) return data.result.users;
+
+  return [];
 
 }
 
@@ -205,6 +411,8 @@ async function getLocketProfile(cleanUsername) {
   let displayName = cleanUsername;
 
   let uid = 'Chưa xác định';
+
+  const targetUsername = normalizeUsername(cleanUsername);
 
   // Cách 1: tìm username trong API danh sách tài khoản
 
@@ -224,19 +432,7 @@ async function getLocketProfile(cleanUsername) {
 
     );
 
-    const data = usersResponse.data;
-
-    const users = Array.isArray(data)
-
-      ? data
-
-      : Array.isArray(data?.users)
-
-        ? data.users
-
-        : [];
-
-    const targetUsername = normalizeUsername(cleanUsername);
+    const users = extractUsersFromApi(usersResponse.data);
 
     const matchedUser = users.find((user) =>
 
@@ -248,7 +444,7 @@ async function getLocketProfile(cleanUsername) {
 
       if (isValidAvatarUrl(matchedUser.avatar)) {
 
-        avatarUrl = matchedUser.avatar;
+        avatarUrl = decodeHtml(matchedUser.avatar);
 
       }
 
@@ -264,15 +460,29 @@ async function getLocketProfile(cleanUsername) {
 
       }
 
+      console.log(
+
+        `Tìm thấy username ${cleanUsername} trong API; avatar: ${avatarUrl ? 'có' : 'không có'}.`
+
+      );
+
+    } else {
+
+      console.log(
+
+        `Username ${cleanUsername} không có trong API; thử đọc trang Locket.`
+
+      );
+
     }
 
   } catch (error) {
 
-    console.log('Không lấy được danh sách tài khoản từ API.');
+    console.log('Không lấy được danh sách tài khoản từ API:', error.message);
 
   }
 
-  // Cách 2: nếu chưa tìm được avatar hoặc UID, thử đọc trang Locket
+  // Cách 2: nếu thiếu avatar hoặc UID, thử đọc trang Locket
 
   if (!avatarUrl || uid === 'Chưa xác định') {
 
@@ -288,11 +498,17 @@ async function getLocketProfile(cleanUsername) {
 
             'User-Agent':
 
-              'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 
           },
 
-          timeout: 8000
+          timeout: 12000,
+
+          maxRedirects: 5,
+
+          responseType: 'text'
 
         }
 
@@ -302,43 +518,61 @@ async function getLocketProfile(cleanUsername) {
 
         typeof response.data === 'string' ? response.data : '';
 
-      const imgMatch = html.match(
+      if (!avatarUrl) {
 
-        /class=["']profile-pic-img["'][^>]*src=["']([^"']+)["']/i
-
-      );
-
-      if (!avatarUrl && imgMatch?.[1]) {
-
-        const candidate = imgMatch[1].replace(/&amp;/g, '&');
-
-        if (isValidAvatarUrl(candidate)) {
-
-          avatarUrl = candidate;
-
-        }
+        avatarUrl = findAvatarInHtml(html);
 
       }
 
       const titleMatch = html.match(
 
-        /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i
+        /<meta\b[^>]*>/gi
 
-      );
+      ) || [];
 
-      if (titleMatch?.[1] && displayName === cleanUsername) {
+      for (const tag of titleMatch) {
 
-        displayName = titleMatch[1]
+        const property = getHtmlAttribute(tag, 'property');
 
-          .replace(/&amp;/g, '&')
+        if (String(property || '').toLowerCase() === 'og:title') {
 
-          .replace(/&quot;/g, '"');
+          const title = getHtmlAttribute(tag, 'content');
+
+          if (title && displayName === cleanUsername) {
+
+            displayName = title;
+
+          }
+
+          break;
+
+        }
+
+      }
+
+      // Thử tìm UID trong đường dẫn ảnh nếu UID chưa được API trả về
+
+      if (uid === 'Chưa xác định' && avatarUrl) {
+
+        const uidMatch = avatarUrl.match(/users%2F([^/%?]+)%2F/i);
+
+        if (uidMatch && uidMatch[1]) {
+
+          uid = decodeURIComponent(uidMatch[1]);
+
+        }
 
       }
 
     } catch (error) {
 
-      console.log('Không đọc được trang profile Locket.');
+      console.log(
+
+        `Không đọc được trang profile Locket của ${cleanUsername}:`,
+
+        error.message
+
+      );
 
     }
 
@@ -346,11 +580,131 @@ async function getLocketProfile(cleanUsername) {
 
   if (!avatarUrl) {
 
-    console.log(`Không tìm thấy avatar thật cho username: ${cleanUsername}`);
+    console.log(
+
+      `Không tìm thấy avatar thật cho username: ${cleanUsername}`
+
+    );
 
   }
 
   return { avatarUrl, displayName, uid };
+
+}
+
+// Tải avatar và xác nhận dữ liệu trả về thực sự là ảnh
+
+async function downloadAvatarBuffer(avatarUrl) {
+
+  if (!isValidAvatarUrl(avatarUrl)) {
+
+    throw new Error('URL avatar không hợp lệ hoặc không được hỗ trợ.');
+
+  }
+
+  const response = await axios.get(avatarUrl, {
+
+    responseType: 'arraybuffer',
+
+    timeout: 15000,
+
+    maxRedirects: 5,
+
+    headers: {
+
+      'User-Agent': 'Mozilla/5.0',
+
+      Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+
+    },
+
+    validateStatus: (status) => status >= 200 && status < 300
+
+  });
+
+  const contentType = String(
+
+    response.headers['content-type'] || ''
+
+  ).toLowerCase();
+
+  const buffer = Buffer.from(response.data);
+
+  if (!buffer.length) {
+
+    throw new Error('Dữ liệu ảnh nhận được bị rỗng.');
+
+  }
+
+  // Một số máy chủ không trả Content-Type chính xác.
+
+  // Khi đó kiểm tra chữ ký file ảnh thay vì loại ngay.
+
+  const isJpeg =
+
+    buffer.length >= 3 &&
+
+    buffer[0] === 0xff &&
+
+    buffer[1] === 0xd8 &&
+
+    buffer[2] === 0xff;
+
+  const isPng =
+
+    buffer.length >= 8 &&
+
+    buffer[0] === 0x89 &&
+
+    buffer[1] === 0x50 &&
+
+    buffer[2] === 0x4e &&
+
+    buffer[3] === 0x47;
+
+  const isGif =
+
+    buffer.length >= 6 &&
+
+    buffer.toString('ascii', 0, 3) === 'GIF';
+
+  const isWebp =
+
+    buffer.length >= 12 &&
+
+    buffer.toString('ascii', 0, 4) === 'RIFF' &&
+
+    buffer.toString('ascii', 8, 12) === 'WEBP';
+
+  const hasImageSignature = isJpeg || isPng || isGif || isWebp;
+
+  if (!contentType.startsWith('image/') && !hasImageSignature) {
+
+    throw new Error(
+
+      `URL không trả về dữ liệu ảnh. Content-Type: ${contentType || 'không xác định'}`
+
+    );
+
+  }
+
+  let filename = 'locket-avatar.jpg';
+
+  if (isPng || contentType.includes('png')) {
+
+    filename = 'locket-avatar.png';
+
+  } else if (isWebp || contentType.includes('webp')) {
+
+    filename = 'locket-avatar.webp';
+
+  } else if (isGif || contentType.includes('gif')) {
+
+    filename = 'locket-avatar.gif';
+
+  }
+
+  return { buffer, filename };
 
 }
 
@@ -372,21 +726,17 @@ bot.on('text', async (ctx) => {
 
     } catch (e) {}
 
-    const cleanUsername = text
+    const cleanUsername = extractUsername(text);
 
-      .replace(/['"`]/g, '')
+    if (
 
-      .replace(/https?:\/\/(www\.)?locket\.cam\//gi, '')
+      !cleanUsername ||
 
-      .replace(/https?:\/\/(www\.)?locket\.com\//gi, '')
+      /\s/.test(cleanUsername) ||
 
-      .replace(/\//g, '')
+      cleanUsername.length > 100
 
-      .trim()
-
-      .replace(/^@/, '');
-
-    if (!cleanUsername) {
+    ) {
 
       return ctx.reply(
 
@@ -397,8 +747,6 @@ bot.on('text', async (ctx) => {
       );
 
     }
-
-    // Lấy avatar thật từ API hoặc trang Locket
 
     const { avatarUrl, displayName, uid } =
 
@@ -416,6 +764,12 @@ bot.on('text', async (ctx) => {
 
     });
 
+    const safeDisplayName = escapeHtml(displayName);
+
+    const safeUsername = escapeHtml(cleanUsername);
+
+    const safeUid = escapeHtml(uid);
+
     const profileCaption =
 
       '💛 <b>THÔNG TIN TÀI KHOẢN</b>\n' +
@@ -426,13 +780,13 @@ bot.on('text', async (ctx) => {
 
       '🖼️ <b>Tên:</b> 👻 🔥\n' +
 
-      '🪪 <b>Display Name:</b> ' + displayName + '\n' +
+      '🪪 <b>Display Name:</b> ' + safeDisplayName + '\n' +
 
-      '👤 <b>Username:</b> ' + cleanUsername + '\n' +
+      '👤 <b>Username:</b> ' + safeUsername + '\n' +
 
       '🆔 <b>UID:</b>\n' +
 
-      '<code>' + uid + '</code>\n' +
+      '<code>' + safeUid + '</code>\n' +
 
       '👑 <b>Gold Status:</b> 🔒 <b>No Active</b>';
 
@@ -446,43 +800,23 @@ bot.on('text', async (ctx) => {
 
     ]);
 
-    // Tải avatar thành Buffer để Telegram nhận ảnh ổn định hơn
+    let avatarSent = false;
 
     if (avatarUrl) {
 
       try {
 
-        const avatarResponse = await axios.get(avatarUrl, {
+        const { buffer, filename } =
 
-          responseType: 'arraybuffer',
-
-          timeout: 12000,
-
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-
-          validateStatus: (status) => status >= 200 && status < 300
-
-        });
-
-        const contentType = String(
-
-          avatarResponse.headers['content-type'] || ''
-
-        ).toLowerCase();
-
-        if (!contentType.startsWith('image/')) {
-
-          throw new Error('URL avatar không trả về dữ liệu ảnh.');
-
-        }
+          await downloadAvatarBuffer(avatarUrl);
 
         await ctx.replyWithPhoto(
 
           {
 
-            source: Buffer.from(avatarResponse.data),
+            source: buffer,
 
-            filename: 'locket-avatar.webp'
+            filename
 
           },
 
@@ -496,31 +830,29 @@ bot.on('text', async (ctx) => {
 
         );
 
+        avatarSent = true;
+
       } catch (avatarError) {
 
-        console.error('Lỗi tải avatar Locket:', avatarError.message);
+        console.error(
 
-        await ctx.reply(
+          `Lỗi tải avatar của ${cleanUsername}:`,
 
-          profileCaption +
-
-            '\n\n⚠️ Không tải được ảnh đại diện thật lúc này.',
-
-          { parse_mode: 'HTML' }
+          avatarError.message
 
         );
 
       }
 
-    } else {
+    }
 
-      // Không dùng avatar hoạt hình thay cho ảnh thật
+    if (!avatarSent) {
 
       await ctx.reply(
 
         profileCaption +
 
-          '\n\n⚠️ Không tìm thấy ảnh đại diện thật cho tài khoản này.',
+          '\n\n⚠️ Không tải được ảnh đại diện thật cho tài khoản này. Bot vẫn tiếp tục kiểm tra thông tin.',
 
         { parse_mode: 'HTML' }
 
@@ -580,6 +912,22 @@ bot.on('text', async (ctx) => {
 
 });
 
+// Escape HTML để tránh lỗi khi tên tài khoản chứa ký tự đặc biệt
+
+function escapeHtml(value) {
+
+  return String(value ?? '')
+
+    .replace(/&/g, '&amp;')
+
+    .replace(/</g, '&lt;')
+
+    .replace(/>/g, '&gt;')
+
+    .replace(/"/g, '&quot;');
+
+}
+
 // Hàm chung xử lý chọn gói & tự hủy sau 3 phút
 
 async function handlePackageSelection(ctx, amount, pkgName) {
@@ -611,8 +959,6 @@ async function handlePackageSelection(ctx, amount, pkgName) {
   session.selectedPkg = pkgName;
 
   userSession.set(userId, session);
-
-  // Nội dung chuyển khoản
 
   const transferSyntax = `LOCKET ${session.cleanUsername}`;
 
@@ -648,13 +994,13 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     '──────────────────────────────\n' +
 
-    '👤 <b>Username:</b> ' + session.cleanUsername + '\n' +
+    '👤 <b>Username:</b> ' + escapeHtml(session.cleanUsername) + '\n' +
 
     '🆔 <b>UID:</b>\n' +
 
-    '<code>' + session.uid + '</code>\n' +
+    '<code>' + escapeHtml(session.uid) + '</code>\n' +
 
-    '📦 <b>Gói:</b> ' + pkgName + '\n' +
+    '📦 <b>Gói:</b> ' + escapeHtml(pkgName) + '\n' +
 
     '💰 <b>Số tiền:</b> <code>' +
 
@@ -670,7 +1016,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>\n' +
 
-    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>\n\n' +
+    '📝 <b>Nội dung CK:</b> <code>' + escapeHtml(transferSyntax) + '</code>\n\n' +
 
     '⏳ <b>LƯU Ý:</b> Mã QR này sẽ <b>tự động hủy sau 3 phút</b> nếu không thanh toán! Sau khi chuyển khoản, hãy <b>gửi ảnh chụp bill</b> vào đây nhé! ❤️';
 
@@ -705,8 +1051,6 @@ async function handlePackageSelection(ctx, amount, pkgName) {
     ]
 
   ]);
-
-  // Tải ảnh QR về trước rồi gửi dạng Buffer
 
   let qrBuffer;
 
@@ -822,13 +1166,13 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     '👤 <b>Khách hàng:</b> @' +
 
-    (ctx.from.username || ctx.from.first_name || 'Khách') +
+    escapeHtml(ctx.from.username || ctx.from.first_name || 'Khách') +
 
     ' (ID: <code>' + userId + '</code>)\n' +
 
-    '👤 <b>Username Locket:</b> ' + session.cleanUsername + '\n' +
+    '👤 <b>Username Locket:</b> ' + escapeHtml(session.cleanUsername) + '\n' +
 
-    '📦 <b>Gói:</b> ' + pkgName + '\n' +
+    '📦 <b>Gói:</b> ' + escapeHtml(pkgName) + '\n' +
 
     '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
 
@@ -1004,13 +1348,13 @@ bot.on('photo', async (ctx) => {
 
       '👤 <b>Khách hàng:</b> @' +
 
-      (ctx.from.username || ctx.from.first_name || 'Khách') +
+      escapeHtml(ctx.from.username || ctx.from.first_name || 'Khách') +
 
       ' (ID: <code>' + userId + '</code>)\n' +
 
-      '👤 <b>Username Locket:</b> ' + username + '\n' +
+      '👤 <b>Username Locket:</b> ' + escapeHtml(username) + '\n' +
 
-      '📦 <b>Gói đăng ký:</b> ' + pkg + '\n' +
+      '📦 <b>Gói đăng ký:</b> ' + escapeHtml(pkg) + '\n' +
 
       '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
 
@@ -1122,8 +1466,6 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
   try {
 
-    // Xóa thông báo chờ của khách
-
     if (customerNoticeMsgId) {
 
       try {
@@ -1133,8 +1475,6 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
       } catch (e) {}
 
     }
-
-    // Giữ nguyên bill bên Admin, chỉ cập nhật trạng thái
 
     if (adminMsgId) {
 
@@ -1162,7 +1502,7 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
       '🎉 <b>ĐÃ TÌM THẤY TÀI KHOẢN LOCKET CHÍNH CHỦ!</b>\n\n' +
 
-      '👤 <b>Tài khoản:</b> ' + username + '\n' +
+      '👤 <b>Tài khoản:</b> ' + escapeHtml(username) + '\n' +
 
       '✨ <b>Trạng thái:</b> <b>Đã mở khóa Locket Gold thành công!</b>\n\n' +
 
