@@ -10,11 +10,11 @@ http.createServer((req, res) => {
 
   res.writeHead(200, { 'Content-Type': 'text/plain' });
 
-  res.end('Bot Locket Gold is running!\n');
+  res.end('Bot Locket Gold is running smoothly!\n');
 
 }).listen(PORT, () => {
 
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server is listening on port ${PORT}`);
 
 });
 
@@ -34,27 +34,23 @@ const ADMIN_ID = 1402351028;
 
 bot.telegram.setMyCommands([
 
-  { command: 'start', description: '🚀 Bắt đầu' },
+  { command: 'start', description: '🚀 Bắt đầu kiểm tra tài khoản Locket' },
 
-  { command: 'guide', description: '📖 Hướng dẫn cài đặt' }
+  { command: 'guide', description: '📖 Hướng dẫn cài đặt chi tiết' }
 
 ]);
 
 const guideText =
 
-  '💛 <b>HƯỚNG DẪN CÀI ĐẶT LOCKET GOLD</b>\n\n' +
+  '💛 <b>HƯỚNG DẪN LOCKET GOLD</b>\n\n' +
 
-  '1️⃣ Tải cấu hình trên Safari.\n' +
+  '1️⃣ Mở liên kết cấu hình do nhà cung cấp cung cấp.\n' +
 
-  '2️⃣ Mở Cài đặt iPhone và chọn hồ sơ đã tải về.\n' +
+  '2️⃣ Kiểm tra kỹ nguồn phát hành và nội dung cấu hình.\n' +
 
-  '3️⃣ Kiểm tra thông tin hồ sơ trước khi cài đặt.\n' +
+  '3️⃣ Chỉ cài đặt hồ sơ nếu anh hiểu rõ quyền truy cập mà hồ sơ yêu cầu.\n\n' +
 
-  '4️⃣ Chỉ cài đặt chứng chỉ nếu anh xác minh được nguồn phát hành và hiểu rõ quyền truy cập của chứng chỉ.\n' +
-
-  '5️⃣ Mở lại ứng dụng và kiểm tra tính năng.\n\n' +
-
-  '⚠️ Không cài hồ sơ hoặc chứng chỉ không rõ nguồn gốc.';
+  '⚠️ Không cài đặt chứng chỉ gốc không rõ nguồn gốc hoặc chưa xác minh được tính an toàn.';
 
 function escapeHTML(value) {
 
@@ -80,7 +76,7 @@ function mainMenu() {
 
     [Markup.button.callback('💎 Gói 1 Năm (100K)', 'pkg_1y')],
 
-    [Markup.button.callback('📖 Hướng dẫn', 'show_guide')]
+    [Markup.button.callback('📖 Hướng dẫn cài đặt', 'show_guide')]
 
   ]);
 
@@ -92,9 +88,11 @@ bot.start(async ctx => {
 
     await ctx.reply(
 
-      '💛 Gửi username hoặc đường dẫn hồ sơ Locket để tiếp tục.',
+      '👉 Gửi username hoặc đường dẫn Locket để tiếp tục nhé!',
 
       {
+
+        parse_mode: 'HTML',
 
         ...Markup.inlineKeyboard([
 
@@ -132,7 +130,7 @@ bot.action('start_prompt', async ctx => {
 
   await ctx.answerCbQuery();
 
-  await ctx.reply('Gửi username hoặc đường dẫn Locket của bạn nhé.');
+  await ctx.reply('👉 Gửi username hoặc đường dẫn Locket của bạn nhé!');
 
 });
 
@@ -140,15 +138,15 @@ bot.action('start_prompt', async ctx => {
 
 bot.on('text', async ctx => {
 
-  const text = ctx.message.text.trim();
-
-  if (text.startsWith('/')) return;
-
-  const userId = ctx.from.id;
-
   try {
 
-    const cleanUsername = text
+    const userId = ctx.from.id;
+
+    const text = ctx.message.text.trim();
+
+    if (text.startsWith('/')) return;
+
+    let cleanUsername = text
 
       .replace(/^https?:\/\/(www\.)?locket\.(cam|com)\//i, '')
 
@@ -160,7 +158,7 @@ bot.on('text', async ctx => {
 
     if (!cleanUsername || cleanUsername.length > 100) {
 
-      await ctx.reply('Username không hợp lệ. Vui lòng kiểm tra lại.');
+      await ctx.reply('❌ Username không hợp lệ. Vui lòng thử lại.');
 
       return;
 
@@ -184,11 +182,7 @@ bot.on('text', async ctx => {
 
         {
 
-          headers: {
-
-            'User-Agent': 'Mozilla/5.0'
-
-          },
+          headers: { 'User-Agent': 'Mozilla/5.0' },
 
           timeout: 8000
 
@@ -224,7 +218,7 @@ bot.on('text', async ctx => {
 
     } catch (err) {
 
-      console.log('Không lấy được hồ sơ công khai:', err.message);
+      console.log('Không lấy được hồ sơ Locket:', err.message);
 
     }
 
@@ -244,9 +238,9 @@ bot.on('text', async ctx => {
 
       '💛 <b>THÔNG TIN TÀI KHOẢN LOCKET</b>\n' +
 
-      '────────────────────\n' +
+      '──────────────────────────────\n' +
 
-      '🪪 <b>Tên:</b> ' + escapeHTML(displayName) + '\n' +
+      '🪪 <b>Display Name:</b> ' + escapeHTML(displayName) + '\n' +
 
       '👤 <b>Username:</b> ' + escapeHTML(cleanUsername) + '\n' +
 
@@ -272,13 +266,7 @@ bot.on('text', async ctx => {
 
     } catch (err) {
 
-      console.log('Không gửi được ảnh đại diện:', err.message);
-
-      await ctx.reply(profileCaption, {
-
-        parse_mode: 'HTML'
-
-      });
+      await ctx.reply(profileCaption, { parse_mode: 'HTML' });
 
     }
 
@@ -304,17 +292,17 @@ bot.on('text', async ctx => {
 
     console.error('Lỗi xử lý username:', err);
 
-    await ctx.reply(
-
-      'Đã xảy ra lỗi khi xử lý username. Vui lòng thử lại.'
-
-    );
+    await ctx.reply('⚠️ Đã xảy ra lỗi. Vui lòng thử lại.');
 
   }
 
 });
 
-// TẠO VÀ GỬI QR THANH TOÁN
+// ======================================
+
+// TẠO QR VÀ GỬI THANH TOÁN
+
+// ======================================
 
 async function handlePackageSelection(ctx, amount, pkgName) {
 
@@ -322,7 +310,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
   try {
 
-    await ctx.answerCbQuery('Đang tạo mã QR...');
+    await ctx.answerCbQuery('Đang tạo mã QR thanh toán...');
 
     const session = userSession.get(userId);
 
@@ -330,7 +318,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       await ctx.reply(
 
-        'Phiên đã hết hạn. Vui lòng gửi lại username Locket.'
+        '⚠️ Phiên đã hết hạn. Vui lòng gửi lại username Locket.'
 
       );
 
@@ -348,19 +336,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       ('LOCKET ' + session.cleanUsername).slice(0, 25);
 
-    /*
-
-      VietQR:
-
-      MB: mã ngân hàng MB Bank
-
-      3955555666666: số tài khoản nhận
-
-      amount: số tiền
-
-      addInfo: nội dung chuyển khoản
-
-    */
+    // VietQR: MB Bank + số tiền + nội dung chuyển khoản
 
     const qrImageUrl =
 
@@ -376,9 +352,9 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     console.log('Số tiền:', amount);
 
-    console.log('Nội dung:', transferSyntax);
+    console.log('Nội dung CK:', transferSyntax);
 
-    // Tải ảnh QR trước để kiểm tra lỗi dịch vụ QR
+    // Tải ảnh QR từ dịch vụ VietQR
 
     const response = await axios.get(qrImageUrl, {
 
@@ -390,23 +366,11 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     });
 
-    const contentType = response.headers['content-type'] || '';
+    const qrBuffer = Buffer.from(response.data);
 
-    if (
+    if (!qrBuffer.length) {
 
-      !contentType.includes('image/') ||
-
-      !response.data ||
-
-      response.data.byteLength === 0
-
-    ) {
-
-      throw new Error(
-
-        'Dịch vụ QR không trả về ảnh hợp lệ: ' + contentType
-
-      );
+      throw new Error('Dữ liệu ảnh QR rỗng.');
 
     }
 
@@ -414,7 +378,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       '💳 <b>THANH TOÁN LOCKET GOLD</b>\n' +
 
-      '────────────────────\n' +
+      '──────────────────────────────\n' +
 
       '👤 <b>Username:</b> ' +
 
@@ -432,23 +396,33 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       '👤 <b>Chủ tài khoản:</b> <code>TRAN TAN PHUOC</code>\n' +
 
-      '📝 <b>Nội dung chuyển khoản:</b>\n' +
+      '📝 <b>Nội dung CK:</b>\n' +
 
       '<code>' + escapeHTML(transferSyntax) + '</code>\n' +
 
       '🆔 <b>Mã đơn:</b> <code>' + orderId + '</code>\n\n' +
 
-      '⚠️ Vui lòng kiểm tra kỹ tên người nhận, số tiền và nội dung trước khi xác nhận chuyển khoản.';
+      '⚠️ Kiểm tra tên người nhận, số tiền và nội dung trước khi xác nhận chuyển khoản.';
 
     const paymentMarkup = Markup.inlineKeyboard([
 
-      [Markup.button.callback('🔙 Chọn lại gói', 'get_back')],
+      [
+
+        Markup.button.callback(
+
+          '🔙 Quay lại chọn gói',
+
+          'get_back'
+
+        )
+
+      ],
 
       [
 
         Markup.button.url(
 
-          '✈️ Liên hệ hỗ trợ',
+          '💬 Telegram hỗ trợ',
 
           'https://t.me/trantanphuoc1628'
 
@@ -458,31 +432,77 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     ]);
 
-    // Gửi ảnh QR trực tiếp bằng dữ liệu đã tải
+    // CÁCH GỬI QR ĐÃ SỬA:
 
-    const sentMsg = await ctx.replyWithPhoto(
+    // Thử gửi ảnh trước; nếu Telegram báo IMAGE_PROCESS_FAILED,
 
-      {
+    // tự động gửi lại dữ liệu đó dưới dạng tệp PNG.
 
-        source: Buffer.from(response.data),
+    let sentMsg;
 
-        filename: 'payment-qr.png'
+    try {
 
-      },
+      sentMsg = await ctx.replyWithPhoto(
 
-      {
+        {
 
-        caption: paymentCaption,
+          source: qrBuffer,
 
-        parse_mode: 'HTML',
+          filename: 'payment-qr.png'
 
-        ...paymentMarkup
+        },
 
-      }
+        {
 
-    );
+          caption: paymentCaption,
 
-    // Lưu đơn hàng đang chờ
+          parse_mode: 'HTML',
+
+          ...paymentMarkup
+
+        }
+
+      );
+
+      console.log('Gửi QR dưới dạng ảnh thành công.');
+
+    } catch (photoError) {
+
+      console.error(
+
+        'Gửi QR dạng ảnh thất bại:',
+
+        photoError.message
+
+      );
+
+      sentMsg = await ctx.replyWithDocument(
+
+        {
+
+          source: qrBuffer,
+
+          filename: 'payment-qr.png'
+
+        },
+
+        {
+
+          caption: paymentCaption,
+
+          parse_mode: 'HTML',
+
+          ...paymentMarkup
+
+        }
+
+      );
+
+      console.log('Gửi QR dưới dạng tệp thành công.');
+
+    }
+
+    // Lưu đơn hàng
 
     const order = {
 
@@ -508,9 +528,15 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
     };
 
+    session.orderId = orderId;
+
+    session.selectedPkg = pkgName;
+
+    userSession.set(userId, session);
+
     pendingOrders.set(orderId, order);
 
-    // Thông báo cho admin; nếu gửi lỗi thì không xóa QR của khách
+    // Báo admin
 
     try {
 
@@ -526,11 +552,11 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
         '💰 Số tiền: ' + amount.toLocaleString('vi-VN') + ' VNĐ\n' +
 
-        '📝 Nội dung: <code>' + escapeHTML(transferSyntax) + '</code>\n' +
+        '📝 Nội dung CK: <code>' +
 
-        '🆔 Mã đơn: <code>' + orderId + '</code>\n' +
+        escapeHTML(transferSyntax) + '</code>\n' +
 
-        '👤 Telegram ID: <code>' + userId + '</code>',
+        '🆔 Mã đơn: <code>' + orderId + '</code>',
 
         { parse_mode: 'HTML' }
 
@@ -538,9 +564,15 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       order.adminMsgId = adminMsg.message_id;
 
-    } catch (adminErr) {
+    } catch (adminError) {
 
-      console.error('Không gửi được thông báo admin:', adminErr.message);
+      console.error(
+
+        'Không gửi được thông báo admin:',
+
+        adminError.message
+
+      );
 
     }
 
@@ -570,7 +602,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
           userId,
 
-          '⏰ Mã QR đã hết hạn. Vui lòng chọn gói lại nếu muốn tiếp tục.'
+          '⏰ Mã QR đã hết hạn. Vui lòng tạo lại đơn nếu muốn thanh toán.'
 
         );
 
@@ -594,7 +626,7 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       pendingOrders.delete(orderId);
 
-    }, 180000);
+    }, 3 * 60 * 1000);
 
     console.log('Đã gửi QR thành công cho đơn:', orderId);
 
@@ -614,15 +646,19 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
       await ctx.reply(
 
-        '⚠️ Không tạo hoặc gửi được mã QR. Vui lòng thử lại sau. ' +
-
-        'Nếu lỗi tiếp tục, hãy báo admin kiểm tra nhật ký bot.'
+        '⚠️ Bot không gửi được mã QR. Vui lòng thử lại sau.'
 
       );
 
-    } catch (replyErr) {
+    } catch (replyError) {
 
-      console.error('Không gửi được thông báo lỗi:', replyErr.message);
+      console.error(
+
+        'Không gửi được thông báo lỗi:',
+
+        replyError.message
+
+      );
 
     }
 
@@ -630,7 +666,11 @@ async function handlePackageSelection(ctx, amount, pkgName) {
 
 }
 
-// Hai nút chọn gói
+// ======================================
+
+// NÚT CHỌN GÓI
+
+// ======================================
 
 bot.action('pkg_6m', async ctx => {
 
@@ -643,8 +683,6 @@ bot.action('pkg_1y', async ctx => {
   await handlePackageSelection(ctx, 100000, '1 Năm');
 
 });
-
-// Quay lại chọn gói
 
 bot.action('get_back', async ctx => {
 
@@ -660,27 +698,17 @@ bot.action('get_back', async ctx => {
 
 });
 
-// Nhận ảnh biên lai thanh toán
+// ======================================
+
+// NHẬN BIÊN LAI THANH TOÁN
+
+// ======================================
 
 bot.on('photo', async ctx => {
 
   const userId = ctx.from.id;
 
   try {
-
-    const session = userSession.get(userId);
-
-    if (!session || !session.orderId) {
-
-      await ctx.reply(
-
-        'Vui lòng tạo đơn thanh toán trước khi gửi biên lai.'
-
-      );
-
-      return;
-
-    }
 
     const order = [...pendingOrders.values()].find(
 
@@ -694,7 +722,7 @@ bot.on('photo', async ctx => {
 
       await ctx.reply(
 
-        'Không tìm thấy đơn đang chờ. Vui lòng tạo lại mã QR.'
+        'Không tìm thấy đơn thanh toán đang chờ. Vui lòng tạo lại mã QR.'
 
       );
 
@@ -706,17 +734,21 @@ bot.on('photo', async ctx => {
 
     const photoFileId = photos[photos.length - 1].file_id;
 
-    const caption =
+    const adminCaption =
 
-      '🔔 <b>ĐÃ NHẬN BIÊN LAI THANH TOÁN</b>\n\n' +
+      '🔔 <b>KHÁCH GỬI BIÊN LAI THANH TOÁN</b>\n\n' +
 
       '👤 Username: ' + escapeHTML(order.username) + '\n' +
 
       '📦 Gói: ' + escapeHTML(order.pkg) + '\n' +
 
-      '💰 Số tiền: ' + order.amount.toLocaleString('vi-VN') + ' VNĐ\n' +
+      '💰 Số tiền: ' +
 
-      '📝 Nội dung: <code>' + escapeHTML(order.transferSyntax) + '</code>\n' +
+      order.amount.toLocaleString('vi-VN') + ' VNĐ\n' +
+
+      '📝 Nội dung CK: <code>' +
+
+      escapeHTML(order.transferSyntax) + '</code>\n' +
 
       '🆔 Mã đơn: <code>' + order.orderId + '</code>\n\n' +
 
@@ -730,7 +762,7 @@ bot.on('photo', async ctx => {
 
       {
 
-        caption,
+        caption: adminCaption,
 
         parse_mode: 'HTML',
 
@@ -778,7 +810,7 @@ bot.on('photo', async ctx => {
 
     await ctx.reply(
 
-      'Không gửi được biên lai cho admin. Vui lòng thử lại.'
+      'Không gửi được biên lai. Vui lòng thử lại.'
 
     );
 
@@ -786,7 +818,11 @@ bot.on('photo', async ctx => {
 
 });
 
-// Admin duyệt đơn
+// ======================================
+
+// ADMIN DUYỆT ĐƠN
+
+// ======================================
 
 bot.action(/^approve_(\d+)$/, async ctx => {
 
@@ -834,23 +870,41 @@ bot.action(/^approve_(\d+)$/, async ctx => {
 
       'Username: ' + order.username + '\n\n' +
 
-      'Chỉ cài cấu hình nếu bạn đã xác minh nguồn phát hành và hiểu rõ quyền truy cập.',
+      'Chỉ cài cấu hình nếu đã xác minh được nguồn phát hành và tính an toàn.',
 
       {
 
         ...Markup.inlineKeyboard([
 
-          [Markup.button.url('Mở liên kết cấu hình', configUrl)],
+          [
 
-          [Markup.button.callback('📖 Hướng dẫn', 'show_guide_customer')]
+            Markup.button.url(
+
+              '📥 Mở liên kết cấu hình',
+
+              configUrl
+
+            )
+
+          ],
+
+          [
+
+            Markup.button.callback(
+
+              '📖 Hướng dẫn',
+
+              'show_guide_customer'
+
+            )
+
+          ]
 
         ])
 
       }
 
     );
-
-    order.status = 'approved';
 
     try {
 
@@ -878,7 +932,11 @@ bot.action(/^approve_(\d+)$/, async ctx => {
 
 });
 
-// Admin từ chối đơn
+// ======================================
+
+// ADMIN TỪ CHỐI ĐƠN
+
+// ======================================
 
 bot.action(/^reject_(\d+)$/, async ctx => {
 
@@ -946,11 +1004,19 @@ bot.action('show_guide_customer', async ctx => {
 
 });
 
-// Báo lỗi handler để tránh lỗi callback bị bỏ qua
-
 bot.catch((err, ctx) => {
 
-  console.error('Lỗi bot:', err.message, 'Update:', ctx.updateType);
+  console.error(
+
+    'Lỗi bot:',
+
+    err.message,
+
+    'Update:',
+
+    ctx.updateType
+
+  );
 
 });
 
