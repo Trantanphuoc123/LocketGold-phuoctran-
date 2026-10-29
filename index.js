@@ -10,13 +10,19 @@ http.createServer((req, res) => {
 
   res.writeHead(200, { 'Content-Type': 'text/plain' });
 
-  res.end('Bot Locket Gold is running smoothly!\n');
+  res.end('Bot Locket Gold is running!\n');
 
 }).listen(PORT, () => {
 
-  console.log(`Server is listening on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 
 });
+
+if (!process.env.BOT_TOKEN) {
+
+  throw new Error('Thiếu biến môi trường BOT_TOKEN!');
+
+}
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -24,257 +30,179 @@ const userSession = new Map();
 
 const pendingOrders = new Map();
 
-// ID Admin
-
 const ADMIN_ID = 1402351028;
-
-// Menu bot Telegram
 
 bot.telegram.setMyCommands([
 
-  { command: 'start', description: '🚀 Bắt đầu kiểm tra tài khoản Locket' },
+  { command: 'start', description: '🚀 Bắt đầu' },
 
-  { command: 'guide', description: '📖 Hướng dẫn cài đặt chi tiết' }
+  { command: 'guide', description: '📖 Hướng dẫn cài đặt' }
 
 ]);
 
-// Hướng dẫn cài đặt
-
 const guideText =
 
-  '💛 <b>ĐỂ PHƯỚC TRẦN HƯỚNG DẪN MẤY NÍ CÀI ĐẶT LOCKET GOLD VIP NHA</b> 💛\n\n' +
+  '💛 <b>HƯỚNG DẪN CÀI ĐẶT LOCKET GOLD</b>\n\n' +
 
-  '1️⃣ <b>Tải & Mở Cấu Hình Trên Safari</b>\n' +
+  '1️⃣ Tải cấu hình trên Safari.\n' +
 
-  '👉 <b>Giữ chặt</b> vào nút <i>"📥 Tải Cấu Hình .mobileconfig"</i>, sau đó chọn 👉 <b>[ MỞ TRÌNH DUYỆT ]</b> để chuyển sang Safari.\n' +
+  '2️⃣ Mở Cài đặt iPhone và chọn hồ sơ đã tải về.\n' +
 
-  'Khi iPhone hiển thị thông báo cố gắng tải về hồ sơ cấu hình ➔ Bấm <b>Cho phép (Allow)</b> ➔ Bấm <b>Đóng</b>.\n\n' +
+  '3️⃣ Kiểm tra thông tin hồ sơ trước khi cài đặt.\n' +
 
-  '2️⃣ <b>Cài Đặt Hồ Sơ Trong Cài Đặt iPhone</b>\n' +
+  '4️⃣ Chỉ cài đặt chứng chỉ nếu anh xác minh được nguồn phát hành và hiểu rõ quyền truy cập của chứng chỉ.\n' +
 
-  'Mở Cài đặt (Settings) ➔ Bấm <b>"Đã tải về hồ sơ"</b> ➔ Bấm <b>Cài đặt</b> góc trên bên phải ➔ Nhập mật mã mở khóa màn hình.\n\n' +
+  '5️⃣ Mở lại ứng dụng và kiểm tra tính năng.\n\n' +
 
-  '3️⃣ <b>Vào Cài Đặt Tin Cậy Chứng Nhận</b>\n' +
+  '⚠️ Không cài hồ sơ hoặc chứng chỉ không rõ nguồn gốc.';
 
-  'Vào Cài đặt ➔ Cài đặt chung (General) ➔ Giới thiệu (About) ➔ Cuộn xuống dưới cùng chọn <b>"Cài đặt tin cậy chứng nhận"</b> (Certificate Trust Settings).\n\n' +
+function escapeHTML(value) {
 
-  '4️⃣ <b>Bật Xanh Công Tắc Chứng Chỉ "Locket Gold Root CA"</b>\n' +
+  return String(value ?? '').replace(/[&<>"]/g, char => ({
 
-  'Tại mục <i>"Bật toàn bộ tin cậy cho các chứng chỉ gốc"</i> ➔ Gạt <b>BẬT XANH</b> dòng <b>"Locket Gold Root CA"</b> ➔ Chọn Tiếp tục (Continue).\n\n' +
+    '&': '&amp;',
 
-  '5️⃣ <b>Mở App & Tận Hưởng</b>\n' +
+    '<': '&lt;',
 
-  'Vuốt đa nhiệm tắt hẳn Locket rồi mở lại. Huy hiệu <b>Locket Gold</b>, quay video 30s/90s, bộ khung & caption độc quyền!';
+    '>': '&gt;',
 
-// Lệnh /start
+    '"': '&quot;'
 
-bot.start(async (ctx) => {
+  })[char]);
 
-  try {
+}
 
-    await ctx.deleteMessage();
+function mainMenu() {
 
-  } catch (e) {}
+  return Markup.inlineKeyboard([
 
-  await ctx.reply(
+    [Markup.button.callback('⚡ Gói 6 Tháng (60K)', 'pkg_6m')],
 
-    '👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây để bắt đầu kiểm tra tài khoản nhé:',
+    [Markup.button.callback('💎 Gói 1 Năm (100K)', 'pkg_1y')],
 
-    {
+    [Markup.button.callback('📖 Hướng dẫn', 'show_guide')]
 
-      parse_mode: 'HTML',
+  ]);
 
-      ...Markup.inlineKeyboard([
+}
 
-        [Markup.button.callback('📖 Xem Hướng Dẫn Cài Đặt', 'show_guide')]
-
-      ])
-
-    }
-
-  );
-
-});
-
-// Lệnh /guide
-
-bot.command('guide', async (ctx) => {
+bot.start(async ctx => {
 
   try {
 
-    await ctx.deleteMessage();
+    await ctx.reply(
 
-  } catch (e) {}
+      '💛 Gửi username hoặc đường dẫn hồ sơ Locket để tiếp tục.',
 
-  await ctx.reply(guideText, {
+      {
 
-    parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
 
-    ...Markup.inlineKeyboard([
+          [Markup.button.callback('📖 Xem hướng dẫn', 'show_guide')]
 
-      [Markup.button.callback('✨ Bắt đầu ngay', 'start_prompt')]
+        ])
 
-    ])
+      }
 
-  });
+    );
+
+  } catch (err) {
+
+    console.error('Lỗi /start:', err.message);
+
+  }
 
 });
 
-// Hiển thị hướng dẫn
+bot.command('guide', async ctx => {
 
-bot.action('show_guide', async (ctx) => {
+  await ctx.reply(guideText, { parse_mode: 'HTML' });
+
+});
+
+bot.action('show_guide', async ctx => {
 
   await ctx.answerCbQuery();
 
-  try {
-
-    await ctx.deleteMessage();
-
-  } catch (e) {}
-
-  await ctx.reply(guideText, {
-
-    parse_mode: 'HTML',
-
-    ...Markup.inlineKeyboard([
-
-      [Markup.button.callback('✨ Bắt đầu ngay', 'start_prompt')]
-
-    ])
-
-  });
+  await ctx.reply(guideText, { parse_mode: 'HTML' });
 
 });
 
-// Bắt đầu lại
-
-bot.action('start_prompt', async (ctx) => {
+bot.action('start_prompt', async ctx => {
 
   await ctx.answerCbQuery();
 
-  try {
-
-    await ctx.deleteMessage();
-
-  } catch (e) {}
-
-  await ctx.reply(
-
-    '👉 Gửi ngay <b>Link hoặc Username Locket</b> của bạn vào đây nhé:',
-
-    { parse_mode: 'HTML' }
-
-  );
+  await ctx.reply('Gửi username hoặc đường dẫn Locket của bạn nhé.');
 
 });
 
-// Xử lý username Locket
+// Nhận username Locket
 
-bot.on('text', async (ctx) => {
+bot.on('text', async ctx => {
+
+  const text = ctx.message.text.trim();
+
+  if (text.startsWith('/')) return;
+
+  const userId = ctx.from.id;
 
   try {
 
-    const userId = ctx.from.id;
+    const cleanUsername = text
 
-    const text = ctx.message.text.trim();
+      .replace(/^https?:\/\/(www\.)?locket\.(cam|com)\//i, '')
 
-    if (text.startsWith('/')) return;
-
-    try {
-
-      await ctx.deleteMessage();
-
-    } catch (e) {}
-
-    let cleanUsername = text
+      .replace(/\/+$/, '')
 
       .replace(/['"`]/g, '')
 
-      .replace(/https?:\/\/(www\.)?locket\.cam\//g, '')
-
-      .replace(/https?:\/\/(www\.)?locket\.com\//g, '')
-
-      .replace(/\//g, '')
-
       .trim();
 
-    if (!cleanUsername) {
+    if (!cleanUsername || cleanUsername.length > 100) {
 
-      return ctx.reply(
+      await ctx.reply('Username không hợp lệ. Vui lòng kiểm tra lại.');
 
-        '❌ Username không hợp lệ! Vui lòng nhập đúng Link hoặc Username Locket nhé.',
-
-        { parse_mode: 'HTML' }
-
-      );
+      return;
 
     }
 
     let avatarUrl =
 
-      `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(cleanUsername)}`;
+      'https://api.dicebear.com/7.x/avataaars/png?seed=' +
+
+      encodeURIComponent(cleanUsername);
 
     let displayName = cleanUsername;
 
-    let uid = '2dz10mKITDbSSWYDiPiHtWTM4S02';
+    const uid = '2dz10mKITDbSSWYDiPiHtWTM4S02';
 
     try {
 
       const response = await axios.get(
 
-        `https://locket.cam/${encodeURIComponent(cleanUsername)}`,
+        'https://locket.cam/' + encodeURIComponent(cleanUsername),
 
         {
 
           headers: {
 
-            'User-Agent':
-
-              'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+            'User-Agent': 'Mozilla/5.0'
 
           },
 
-          timeout: 6000
+          timeout: 8000
 
         }
 
       );
 
-      const html = response.data;
+      const html = String(response.data);
 
-      const imgTagMatch = html.match(
+      const imageMatch = html.match(
 
         /class="profile-pic-img"[^>]*src="([^"]+)"/
 
       );
-
-      if (imgTagMatch && imgTagMatch[1]) {
-
-        avatarUrl = imgTagMatch[1].replace(/&amp;/g, '&');
-
-      } else {
-
-        const ogMatch = html.match(
-
-          /<meta property="og:image" content="([^"]+)"/
-
-        );
-
-        if (
-
-          ogMatch &&
-
-          ogMatch[1] &&
-
-          !ogMatch[1].includes('locket-public-assets')
-
-        ) {
-
-          avatarUrl = ogMatch[1].replace(/&amp;/g, '&');
-
-        }
-
-      }
 
       const titleMatch = html.match(
 
@@ -282,15 +210,21 @@ bot.on('text', async (ctx) => {
 
       );
 
-      if (titleMatch && titleMatch[1]) {
+      if (imageMatch) {
+
+        avatarUrl = imageMatch[1].replace(/&amp;/g, '&');
+
+      }
+
+      if (titleMatch) {
 
         displayName = titleMatch[1];
 
       }
 
-    } catch (e) {
+    } catch (err) {
 
-      console.log('Không cào được profile Locket, dùng avatar tự động.');
+      console.log('Không lấy được hồ sơ công khai:', err.message);
 
     }
 
@@ -308,93 +242,71 @@ bot.on('text', async (ctx) => {
 
     const profileCaption =
 
-      '💛 <b>THÔNG TIN TÀI KHOẢN</b>\n' +
+      '💛 <b>THÔNG TIN TÀI KHOẢN LOCKET</b>\n' +
 
-      '<b>LOCKET</b>\n' +
+      '────────────────────\n' +
 
-      '──────────────────────────────\n' +
+      '🪪 <b>Tên:</b> ' + escapeHTML(displayName) + '\n' +
 
-      '🖼️ <b>Tên:</b> 👻 🔥\n' +
+      '👤 <b>Username:</b> ' + escapeHTML(cleanUsername) + '\n' +
 
-      '🪪 <b>Display Name:</b> ' + displayName + '\n' +
+      '🆔 <b>UID:</b> <code>' + uid + '</code>\n' +
 
-      '👤 <b>Username:</b> ' + cleanUsername + '\n' +
+      '👑 <b>Gold Status:</b> Chưa xác minh';
 
-      '🆔 <b>UID:</b>\n' +
+    try {
 
-      '<code>' + uid + '</code>\n' +
+      await ctx.replyWithPhoto(
 
-      '👑 <b>Gold Status:</b> 🔒 <b>No Active</b>';
+        { url: avatarUrl },
 
-    const pricingMenuMarkup = Markup.inlineKeyboard([
+        {
 
-      [Markup.button.callback('⚡ Gói 6 Tháng (60K)', 'pkg_6m')],
+          caption: profileCaption,
 
-      [Markup.button.callback('💎 Gói 1 Năm (100K)', 'pkg_1y')],
+          parse_mode: 'HTML'
 
-      [Markup.button.callback('📖 Hướng dẫn cài đặt', 'show_guide')]
+        }
 
-    ]);
+      );
 
-    await ctx.replyWithPhoto(
+    } catch (err) {
 
-      { url: avatarUrl },
+      console.log('Không gửi được ảnh đại diện:', err.message);
 
-      {
-
-        caption: profileCaption,
+      await ctx.reply(profileCaption, {
 
         parse_mode: 'HTML'
 
-      }
+      });
 
-    );
+    }
 
     const featuresText =
 
-      '✅ <b>Quay video 30 giây / 1 phút có âm thanh</b>\n' +
+      '✨ <b>THÔNG TIN CÁC GÓI</b>\n\n' +
 
-      '✅ <b>Up ảnh/video có âm thanh từ thư viện</b>\n' +
+      '• Gói 6 tháng: <b>60.000 VNĐ</b>\n' +
 
-      '✅ <b>Chế độ đăng riêng tư</b>\n' +
+      '• Gói 1 năm: <b>100.000 VNĐ</b>\n\n' +
 
-      '✅ <b>Toàn bộ Ghi chú, Caption màu hay ho đặc sắc</b>\n' +
-
-      '✅ <b>Và toàn bộ các tính năng Locket Gold khác...</b>\n' +
-
-      '✅ <b>Xóa app tải lại vẫn còn Gold</b>\n' +
-
-      '✅ <b>Đăng xuất ➔ đăng nhập lại vẫn còn Gold</b>\n' +
-
-      '✅ <b>Độ ổn định tuyệt đối, không bị rụng gold trong quá trình sử dụng</b>\n' +
-
-      '✅ <b>Bảo hành full thời gian sử dụng</b>\n' +
-
-      '🗣️ <i>Không có hiệu ứng huy hiệu Locket Gold ngoài profile nhưng full tính năng VIP!</i>\n\n' +
-
-      '💲 <b>Giá bán:</b>\n' +
-
-      '• <code>60.000 VNĐ / 6 Tháng</code> - Bảo hành full\n' +
-
-      '• <code>100.000 VNĐ / 1 Năm</code> - Bảo hành full\n\n' +
-
-      '👉 <b>Chọn gói bạn muốn nâng cấp:</b>';
+      '👇 Chọn gói để tạo mã QR thanh toán:';
 
     await ctx.reply(featuresText, {
 
       parse_mode: 'HTML',
 
-      ...pricingMenuMarkup
+      ...mainMenu()
 
     });
 
   } catch (err) {
 
-    console.error('Lỗi xử lý tin nhắn:', err);
+    console.error('Lỗi xử lý username:', err);
 
     await ctx.reply(
 
-      '⚠️ Đã xảy ra lỗi khi check tài khoản, vui lòng thử lại hoặc gửi lại link Locket nhé!'
+      'Đã xảy ra lỗi khi xử lý username. Vui lòng thử lại.'
 
     );
 
@@ -402,323 +314,391 @@ bot.on('text', async (ctx) => {
 
 });
 
-// Xử lý chọn gói và tạo QR thanh toán
+// TẠO VÀ GỬI QR THANH TOÁN
 
 async function handlePackageSelection(ctx, amount, pkgName) {
 
-  await ctx.answerCbQuery();
+  const userId = ctx.from.id;
 
   try {
 
-    await ctx.deleteMessage();
+    await ctx.answerCbQuery('Đang tạo mã QR...');
 
-  } catch (e) {}
+    const session = userSession.get(userId);
 
-  const userId = ctx.from.id;
+    if (!session || !session.cleanUsername) {
 
-  const session = userSession.get(userId) || {
+      await ctx.reply(
 
-    cleanUsername: 'vinhht4905',
+        'Phiên đã hết hạn. Vui lòng gửi lại username Locket.'
 
-    displayName: '👻 🔥',
+      );
 
-    uid: '2dz10mKITDbSSWYDiPiHtWTM4S02'
-
-  };
-
-  const orderId = Math.floor(10000000 + Math.random() * 90000000);
-
-  session.orderId = orderId;
-
-  session.selectedPkg = pkgName;
-
-  userSession.set(userId, session);
-
-  // Nội dung chuyển khoản
-
-  const transferSyntax =
-
-    (`LOCKET ${session.cleanUsername}`).slice(0, 25);
-
-  // VietQR: MB Bank, số tiền và nội dung chuyển khoản
-
-  const qrImageUrl =
-
-    'https://img.vietqr.io/image/MB-3955555666666-compact2.png' +
-
-    `?amount=${amount}` +
-
-    `&addInfo=${encodeURIComponent(transferSyntax)}` +
-
-    `&accountName=${encodeURIComponent('TRAN TAN PHUOC')}`;
-
-  const paymentCaption =
-
-    `💳 <b>THANH TOÁN UP LOCKET GOLD (${pkgName.toUpperCase()})</b>\n` +
-
-    '──────────────────────────────\n' +
-
-    '👤 <b>Username:</b> ' + session.cleanUsername + '\n' +
-
-    '🆔 <b>UID:</b>\n' +
-
-    '<code>' + session.uid + '</code>\n' +
-
-    '📦 <b>Gói:</b> ' + pkgName + '\n' +
-
-    '💰 <b>Số tiền:</b> <code>' +
-
-      (amount === 60000 ? '60.000 VNĐ' : '100.000 VNĐ') +
-
-      '</code>\n' +
-
-    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
-
-    '🏛️ <b>Ngân hàng:</b> MB BANK - Quân Đội\n' +
-
-    '🔢 <b>Số TK:</b> <code>3955555666666</code>\n' +
-
-    '👤 <b>Chủ TK:</b> <code>TRAN TAN PHUOC</code>\n' +
-
-    '📝 <b>Nội dung CK:</b> <code>' + transferSyntax + '</code>\n\n' +
-
-    '⏳ <b>LƯU Ý:</b> Mã QR này sẽ <b>tự động hủy sau 3 phút</b> nếu không thanh toán! Sau khi chuyển khoản, hãy <b>gửi ảnh chụp bill</b> vào đây nhé! ❤️';
-
-  const paymentMarkup = Markup.inlineKeyboard([
-
-    [Markup.button.callback('🔙 Quay lại chọn gói', 'get_back')],
-
-    [
-
-      Markup.button.url(
-
-        '🌐 Facebook Admin',
-
-        'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'
-
-      ),
-
-      Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')
-
-    ],
-
-    [
-
-      Markup.button.url(
-
-        '✈️ Telegram Hỗ Trợ',
-
-        'https://t.me/trantanphuoc1628'
-
-      )
-
-    ]
-
-  ]);
-
-  const sentMsg = await ctx.replyWithPhoto(
-
-    { url: qrImageUrl },
-
-    {
-
-      caption: paymentCaption,
-
-      parse_mode: 'HTML',
-
-      ...paymentMarkup
+      return;
 
     }
 
-  );
+    const orderId = String(
 
-  const customerMsgId = sentMsg.message_id;
+      Date.now().toString().slice(-8)
 
-  const adminCaption =
+    );
 
-    '🔔 <b>CÓ ĐƠN KHỞI TẠO THANH TOÁN (CHỜ BILL)!</b>\n' +
+    const transferSyntax =
 
-    '──────────────────────────────\n' +
+      ('LOCKET ' + session.cleanUsername).slice(0, 25);
 
-    '👤 <b>Khách hàng:</b> @' +
+    /*
 
-      (ctx.from.username || ctx.from.first_name || 'Khách') +
+      VietQR:
 
-      ' (ID: <code>' + userId + '</code>)\n' +
+      MB: mã ngân hàng MB Bank
 
-    '👤 <b>Username Locket:</b> ' + session.cleanUsername + '\n' +
+      3955555666666: số tài khoản nhận
 
-    '📦 <b>Gói:</b> ' + pkgName + '\n' +
+      amount: số tiền
 
-    '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
+      addInfo: nội dung chuyển khoản
 
-    '⏳ <i>Đơn hàng đang chờ khách chuyển khoản và gửi bill (Tự hủy sau 3 phút nếu không có giao dịch)...</i>';
+    */
 
-  const adminMsg = await ctx.telegram.sendMessage(
+    const qrImageUrl =
 
-    ADMIN_ID,
+      'https://img.vietqr.io/image/MB-3955555666666-compact2.png' +
 
-    adminCaption,
+      '?amount=' + amount +
 
-    { parse_mode: 'HTML' }
+      '&addInfo=' + encodeURIComponent(transferSyntax) +
 
-  );
+      '&accountName=' + encodeURIComponent('TRAN TAN PHUOC');
 
-  const adminMsgId = adminMsg.message_id;
+    console.log('Đang tạo QR cho đơn:', orderId);
 
-  pendingOrders.set(orderId, {
+    console.log('Số tiền:', amount);
 
-    userId,
+    console.log('Nội dung:', transferSyntax);
 
-    username: session.cleanUsername,
+    // Tải ảnh QR trước để kiểm tra lỗi dịch vụ QR
 
-    pkg: pkgName,
+    const response = await axios.get(qrImageUrl, {
 
-    uid: session.uid,
+      responseType: 'arraybuffer',
 
-    customerMsgId,
+      timeout: 20000,
 
-    adminMsgId
+      validateStatus: status => status >= 200 && status < 300
 
-  });
+    });
 
-  setTimeout(async () => {
+    const contentType = response.headers['content-type'] || '';
 
-    const order = pendingOrders.get(orderId);
+    if (
 
-    if (order) {
+      !contentType.includes('image/') ||
+
+      !response.data ||
+
+      response.data.byteLength === 0
+
+    ) {
+
+      throw new Error(
+
+        'Dịch vụ QR không trả về ảnh hợp lệ: ' + contentType
+
+      );
+
+    }
+
+    const paymentCaption =
+
+      '💳 <b>THANH TOÁN LOCKET GOLD</b>\n' +
+
+      '────────────────────\n' +
+
+      '👤 <b>Username:</b> ' +
+
+      escapeHTML(session.cleanUsername) + '\n' +
+
+      '📦 <b>Gói:</b> ' + escapeHTML(pkgName) + '\n' +
+
+      '💰 <b>Số tiền:</b> <code>' +
+
+      amount.toLocaleString('vi-VN') + ' VNĐ</code>\n' +
+
+      '🏦 <b>Ngân hàng:</b> MB Bank\n' +
+
+      '🔢 <b>Số tài khoản:</b> <code>3955555666666</code>\n' +
+
+      '👤 <b>Chủ tài khoản:</b> <code>TRAN TAN PHUOC</code>\n' +
+
+      '📝 <b>Nội dung chuyển khoản:</b>\n' +
+
+      '<code>' + escapeHTML(transferSyntax) + '</code>\n' +
+
+      '🆔 <b>Mã đơn:</b> <code>' + orderId + '</code>\n\n' +
+
+      '⚠️ Vui lòng kiểm tra kỹ tên người nhận, số tiền và nội dung trước khi xác nhận chuyển khoản.';
+
+    const paymentMarkup = Markup.inlineKeyboard([
+
+      [Markup.button.callback('🔙 Chọn lại gói', 'get_back')],
+
+      [
+
+        Markup.button.url(
+
+          '✈️ Liên hệ hỗ trợ',
+
+          'https://t.me/trantanphuoc1628'
+
+        )
+
+      ]
+
+    ]);
+
+    // Gửi ảnh QR trực tiếp bằng dữ liệu đã tải
+
+    const sentMsg = await ctx.replyWithPhoto(
+
+      {
+
+        source: Buffer.from(response.data),
+
+        filename: 'payment-qr.png'
+
+      },
+
+      {
+
+        caption: paymentCaption,
+
+        parse_mode: 'HTML',
+
+        ...paymentMarkup
+
+      }
+
+    );
+
+    // Lưu đơn hàng đang chờ
+
+    const order = {
+
+      orderId,
+
+      userId,
+
+      username: session.cleanUsername,
+
+      pkg: pkgName,
+
+      uid: session.uid,
+
+      amount,
+
+      transferSyntax,
+
+      customerMsgId: sentMsg.message_id,
+
+      adminMsgId: null,
+
+      status: 'pending'
+
+    };
+
+    pendingOrders.set(orderId, order);
+
+    // Thông báo cho admin; nếu gửi lỗi thì không xóa QR của khách
+
+    try {
+
+      const adminMsg = await ctx.telegram.sendMessage(
+
+        ADMIN_ID,
+
+        '🔔 <b>ĐƠN HÀNG CHỜ THANH TOÁN</b>\n\n' +
+
+        '👤 Username: ' + escapeHTML(order.username) + '\n' +
+
+        '📦 Gói: ' + escapeHTML(pkgName) + '\n' +
+
+        '💰 Số tiền: ' + amount.toLocaleString('vi-VN') + ' VNĐ\n' +
+
+        '📝 Nội dung: <code>' + escapeHTML(transferSyntax) + '</code>\n' +
+
+        '🆔 Mã đơn: <code>' + orderId + '</code>\n' +
+
+        '👤 Telegram ID: <code>' + userId + '</code>',
+
+        { parse_mode: 'HTML' }
+
+      );
+
+      order.adminMsgId = adminMsg.message_id;
+
+    } catch (adminErr) {
+
+      console.error('Không gửi được thông báo admin:', adminErr.message);
+
+    }
+
+    // Tự hủy QR sau 3 phút nếu đơn vẫn chờ
+
+    setTimeout(async () => {
+
+      const current = pendingOrders.get(orderId);
+
+      if (!current || current.status !== 'pending') return;
 
       try {
 
-        await ctx.telegram.deleteMessage(userId, customerMsgId);
+        await ctx.telegram.deleteMessage(
+
+          userId,
+
+          current.customerMsgId
+
+        );
+
+      } catch (err) {}
+
+      try {
 
         await ctx.telegram.sendMessage(
 
           userId,
 
-          '⏰ <b>Mã thanh toán QR đã hết hạn (sau 3 phút)!</b> Vui lòng gửi lại link Locket nếu bạn vẫn muốn tiếp tục mua nhé.',
-
-          { parse_mode: 'HTML' }
+          '⏰ Mã QR đã hết hạn. Vui lòng chọn gói lại nếu muốn tiếp tục.'
 
         );
 
-      } catch (e) {}
+      } catch (err) {}
 
-      try {
+      if (current.adminMsgId) {
 
-        await ctx.telegram.deleteMessage(ADMIN_ID, adminMsgId);
+        try {
 
-      } catch (e) {}
+          await ctx.telegram.deleteMessage(
+
+            ADMIN_ID,
+
+            current.adminMsgId
+
+          );
+
+        } catch (err) {}
+
+      }
 
       pendingOrders.delete(orderId);
 
+    }, 180000);
+
+    console.log('Đã gửi QR thành công cho đơn:', orderId);
+
+  } catch (err) {
+
+    console.error(
+
+      'LỖI TẠO/GỬI QR:',
+
+      err.response?.status || '',
+
+      err.message
+
+    );
+
+    try {
+
+      await ctx.reply(
+
+        '⚠️ Không tạo hoặc gửi được mã QR. Vui lòng thử lại sau. ' +
+
+        'Nếu lỗi tiếp tục, hãy báo admin kiểm tra nhật ký bot.'
+
+      );
+
+    } catch (replyErr) {
+
+      console.error('Không gửi được thông báo lỗi:', replyErr.message);
+
     }
 
-  }, 3 * 60 * 1000);
+  }
 
 }
 
-// Gói 6 tháng
+// Hai nút chọn gói
 
-bot.action('pkg_6m', async (ctx) => {
+bot.action('pkg_6m', async ctx => {
 
-  await handlePackageSelection(ctx, 60000, '6 Tháng (60.000đ)');
-
-});
-
-// Gói 1 năm
-
-bot.action('pkg_1y', async (ctx) => {
-
-  await handlePackageSelection(ctx, 100000, '1 Năm (100.000đ)');
+  await handlePackageSelection(ctx, 60000, '6 Tháng');
 
 });
 
-// Quay lại
+bot.action('pkg_1y', async ctx => {
 
-bot.action('get_back', async (ctx) => {
+  await handlePackageSelection(ctx, 100000, '1 Năm');
+
+});
+
+// Quay lại chọn gói
+
+bot.action('get_back', async ctx => {
 
   await ctx.answerCbQuery();
 
-  try {
-
-    await ctx.deleteMessage();
-
-  } catch (e) {}
-
   await ctx.reply(
 
-    '👉 Vui lòng gửi lại <b>Link hoặc Username Locket</b> của bạn để tiếp tục chọn gói nhé:',
+    '👇 Chọn gói thanh toán:',
 
-    { parse_mode: 'HTML' }
+    mainMenu()
 
   );
 
 });
 
-// Nhận ảnh bill thanh toán
+// Nhận ảnh biên lai thanh toán
 
-bot.on('photo', async (ctx) => {
+bot.on('photo', async ctx => {
+
+  const userId = ctx.from.id;
 
   try {
 
-    const userId = ctx.from.id;
-
     const session = userSession.get(userId);
 
-    try {
+    if (!session || !session.orderId) {
 
-      await ctx.deleteMessage();
+      await ctx.reply(
 
-    } catch (e) {}
+        'Vui lòng tạo đơn thanh toán trước khi gửi biên lai.'
 
-    const username = session ? session.cleanUsername : 'Chưa rõ';
+      );
 
-    const pkg =
-
-      session && session.selectedPkg
-
-        ? session.selectedPkg
-
-        : 'Không rõ gói';
-
-    const uid = session
-
-      ? session.uid
-
-      : '2dz10mKITDbSSWYDiPiHtWTM4S02';
-
-    const orderId =
-
-      session && session.orderId
-
-        ? session.orderId
-
-        : Math.floor(10000000 + Math.random() * 90000000);
-
-    let oldAdminMsgId = null;
-
-    for (const [oid, ord] of pendingOrders.entries()) {
-
-      if (ord.userId === userId) {
-
-        oldAdminMsgId = ord.adminMsgId;
-
-        pendingOrders.delete(oid);
-
-        break;
-
-      }
+      return;
 
     }
 
-    if (oldAdminMsgId) {
+    const order = [...pendingOrders.values()].find(
 
-      try {
+      item => item.userId === userId &&
 
-        await ctx.telegram.deleteMessage(ADMIN_ID, oldAdminMsgId);
+              item.status === 'pending'
 
-      } catch (e) {}
+    );
+
+    if (!order) {
+
+      await ctx.reply(
+
+        'Không tìm thấy đơn đang chờ. Vui lòng tạo lại mã QR.'
+
+      );
+
+      return;
 
     }
 
@@ -726,45 +706,23 @@ bot.on('photo', async (ctx) => {
 
     const photoFileId = photos[photos.length - 1].file_id;
 
-    const adminCaption =
+    const caption =
 
-      '🔔 <b>CÓ ĐƠN THANH TOÁN MỚI (ĐÃ GỬI BILL)!</b>\n' +
+      '🔔 <b>ĐÃ NHẬN BIÊN LAI THANH TOÁN</b>\n\n' +
 
-      '──────────────────────────────\n' +
+      '👤 Username: ' + escapeHTML(order.username) + '\n' +
 
-      '👤 <b>Khách hàng:</b> @' +
+      '📦 Gói: ' + escapeHTML(order.pkg) + '\n' +
 
-        (ctx.from.username || ctx.from.first_name || 'Khách') +
+      '💰 Số tiền: ' + order.amount.toLocaleString('vi-VN') + ' VNĐ\n' +
 
-        ' (ID: <code>' + userId + '</code>)\n' +
+      '📝 Nội dung: <code>' + escapeHTML(order.transferSyntax) + '</code>\n' +
 
-      '👤 <b>Username Locket:</b> ' + username + '\n' +
+      '🆔 Mã đơn: <code>' + order.orderId + '</code>\n\n' +
 
-      '📦 <b>Gói đăng ký:</b> ' + pkg + '\n' +
+      'Hãy kiểm tra giao dịch thực tế trước khi duyệt.';
 
-      '🆔 <b>Mã đơn hàng:</b> <code>' + orderId + '</code>\n\n' +
-
-      '👉 <i>Bấm nút bên dưới để duyệt hoặc từ chối đơn hàng này:</i>';
-
-    const adminMarkup = Markup.inlineKeyboard([
-
-      [
-
-        Markup.button.callback(
-
-          '✅ Duyệt đơn & Gửi Cấu Hình',
-
-          `approve_${orderId}`
-
-        ),
-
-        Markup.button.callback('❌ Từ chối', `reject_${orderId}`)
-
-      ]
-
-    ]);
-
-    const sentAdminMsg = await ctx.telegram.sendPhoto(
+    const adminMsg = await ctx.telegram.sendPhoto(
 
       ADMIN_ID,
 
@@ -772,43 +730,57 @@ bot.on('photo', async (ctx) => {
 
       {
 
-        caption: adminCaption,
+        caption,
 
         parse_mode: 'HTML',
 
-        ...adminMarkup
+        ...Markup.inlineKeyboard([
+
+          [
+
+            Markup.button.callback(
+
+              '✅ Duyệt đơn',
+
+              'approve_' + order.orderId
+
+            ),
+
+            Markup.button.callback(
+
+              '❌ Từ chối',
+
+              'reject_' + order.orderId
+
+            )
+
+          ]
+
+        ])
 
       }
 
     );
 
-    const noticeMsg = await ctx.reply(
+    order.adminMsgId = adminMsg.message_id;
 
-      '⏳ <b>Đã nhận được ảnh biên lai của bạn!</b>\nAdmin đang kiểm tra giao dịch và sẽ gửi cấu hình Locket Gold cho bạn trong giây lát. Bạn chờ chút xíu nhé! ❤️',
+    order.status = 'bill_received';
 
-      { parse_mode: 'HTML' }
+    await ctx.reply(
+
+      '✅ Đã nhận biên lai. Admin sẽ kiểm tra giao dịch trước khi xử lý.'
 
     );
 
-    pendingOrders.set(orderId, {
-
-      userId,
-
-      username,
-
-      pkg,
-
-      uid,
-
-      customerNoticeMsgId: noticeMsg.message_id,
-
-      adminMsgId: sentAdminMsg.message_id
-
-    });
-
   } catch (err) {
 
-    console.error('Lỗi xử lý ảnh bill:', err);
+    console.error('Lỗi nhận biên lai:', err.message);
+
+    await ctx.reply(
+
+      'Không gửi được biên lai cho admin. Vui lòng thử lại.'
+
+    );
 
   }
 
@@ -816,165 +788,91 @@ bot.on('photo', async (ctx) => {
 
 // Admin duyệt đơn
 
-bot.action(/^approve_(\d+)$/, async (ctx) => {
+bot.action(/^approve_(\d+)$/, async ctx => {
 
-  await ctx.answerCbQuery('Đang tiến hành duyệt đơn...');
+  await ctx.answerCbQuery();
 
-  const orderId = Number(ctx.match[1]);
+  if (ctx.from.id !== ADMIN_ID) {
 
-  const order = pendingOrders.get(orderId);
+    await ctx.reply('Bạn không có quyền thực hiện thao tác này.');
 
-  if (!order) {
-
-    return ctx.reply(
-
-      '⚠️ Đơn hàng này không tồn tại hoặc đã được xử lý trước đó.'
-
-    );
+    return;
 
   }
 
-  const {
+  const order = pendingOrders.get(ctx.match[1]);
 
-    userId,
-
-    username,
-
-    pkg,
-
-    uid,
-
-    customerNoticeMsgId,
-
-    adminMsgId
-
-  } = order;
-
-  try {
-
-    if (customerNoticeMsgId) {
-
-      try {
-
-        await ctx.telegram.deleteMessage(userId, customerNoticeMsgId);
-
-      } catch (e) {}
-
-    }
-
-    if (adminMsgId) {
-
-      try {
-
-        await ctx.editMessageCaption(
-
-          ctx.callbackQuery.message.caption +
-
-            '\n\n✅ <b>ĐÃ DUYỆT ĐƠN VÀ GỬI CẤU HÌNH CHO KHÁCH THÀNH CÔNG!</b>',
-
-          { parse_mode: 'HTML' }
-
-        );
-
-      } catch (e) {}
-
-    }
-
-    const configUrl =
-
-      `https://160-191-242-70.sslip.io/locket_gold.mobileconfig?token=b68e2c860b21&uid=${encodeURIComponent(uid)}&username=${encodeURIComponent(username)}`;
-
-    const successCaption =
-
-      '🎉 <b>ĐÃ TÌM THẤY TÀI KHOẢN LOCKET CHÍNH CHỦ!</b>\n\n' +
-
-      '👤 <b>Tài khoản:</b> ' + username + '\n' +
-
-      '✨ <b>Trạng thái:</b> <b>Đã mở khóa Locket Gold thành công!</b>\n\n' +
-
-      '⚠️ <b>Lưu ý:</b> Nếu gặp lỗi hoặc mất Gold, bấm nút bên dưới để inbox Admin hỗ trợ ngay nhé!\n\n' +
-
-      '👇 <b>Bấm vào nút bên dưới để tải cấu hình hoặc xem hướng dẫn cài đặt:</b>';
-
-    const successMarkup = Markup.inlineKeyboard([
-
-      [
-
-        Markup.button.url(
-
-          '📥 Tải Cấu Hình .mobileconfig',
-
-          configUrl
-
-        )
-
-      ],
-
-      [
-
-        Markup.button.callback(
-
-          '📖 Hướng Dẫn Cài Đặt Chi Tiết',
-
-          'show_guide_customer'
-
-        )
-
-      ],
-
-      [
-
-        Markup.button.url(
-
-          '🌐 Facebook Admin',
-
-          'https://www.facebook.com/share/1CR6x6MAFp/?mibextid=wwXIfr'
-
-        ),
-
-        Markup.button.url('💬 Zalo Hỗ Trợ', 'http://zalo.me/0355991877')
-
-      ],
-
-      [
-
-        Markup.button.url(
-
-          '✈️ Telegram Admin',
-
-          'https://t.me/trantanphuoc1628'
-
-        )
-
-      ],
-
-      [
-
-        Markup.button.callback('🔄 Tạo lại từ đầu', 'start_prompt')
-
-      ]
-
-    ]);
-
-    await ctx.telegram.sendMessage(userId, successCaption, {
-
-      parse_mode: 'HTML',
-
-      ...successMarkup
-
-    });
-
-    pendingOrders.delete(orderId);
-
-  } catch (err) {
-
-    console.error('Lỗi khi duyệt đơn:', err);
+  if (!order || order.status !== 'bill_received') {
 
     await ctx.reply(
 
-      '⚠️ Có lỗi xảy ra khi gửi cấu hình cho khách (có thể khách đã chặn bot).'
+      'Đơn không tồn tại hoặc chưa có biên lai để kiểm tra.'
 
     );
+
+    return;
+
+  }
+
+  try {
+
+    const configUrl =
+
+      'https://160-191-242-70.sslip.io/locket_gold.mobileconfig' +
+
+      '?token=b68e2c860b21' +
+
+      '&uid=' + encodeURIComponent(order.uid) +
+
+      '&username=' + encodeURIComponent(order.username);
+
+    await ctx.telegram.sendMessage(
+
+      order.userId,
+
+      'Đơn hàng đã được admin xử lý.\n' +
+
+      'Username: ' + order.username + '\n\n' +
+
+      'Chỉ cài cấu hình nếu bạn đã xác minh nguồn phát hành và hiểu rõ quyền truy cập.',
+
+      {
+
+        ...Markup.inlineKeyboard([
+
+          [Markup.button.url('Mở liên kết cấu hình', configUrl)],
+
+          [Markup.button.callback('📖 Hướng dẫn', 'show_guide_customer')]
+
+        ])
+
+      }
+
+    );
+
+    order.status = 'approved';
+
+    try {
+
+      await ctx.editMessageCaption(
+
+        (ctx.callbackQuery.message.caption || '') +
+
+        '\n\n✅ ĐÃ DUYỆT',
+
+        { parse_mode: 'HTML' }
+
+      );
+
+    } catch (err) {}
+
+    pendingOrders.delete(order.orderId);
+
+  } catch (err) {
+
+    console.error('Lỗi duyệt đơn:', err.message);
+
+    await ctx.reply('Không gửi được thông báo cho khách.');
 
   }
 
@@ -982,77 +880,65 @@ bot.action(/^approve_(\d+)$/, async (ctx) => {
 
 // Admin từ chối đơn
 
-bot.action(/^reject_(\d+)$/, async (ctx) => {
+bot.action(/^reject_(\d+)$/, async ctx => {
 
-  await ctx.answerCbQuery('Đã từ chối đơn hàng.');
+  await ctx.answerCbQuery();
 
-  const orderId = Number(ctx.match[1]);
+  if (ctx.from.id !== ADMIN_ID) {
 
-  const order = pendingOrders.get(orderId);
+    await ctx.reply('Bạn không có quyền thực hiện thao tác này.');
 
-  if (order) {
+    return;
 
-    const {
+  }
 
-      userId,
+  const order = pendingOrders.get(ctx.match[1]);
 
-      customerNoticeMsgId,
+  if (!order) {
 
-      adminMsgId
+    await ctx.reply('Không tìm thấy đơn hàng.');
 
-    } = order;
+    return;
 
-    if (customerNoticeMsgId) {
+  }
 
-      try {
+  try {
 
-        await ctx.telegram.deleteMessage(userId, customerNoticeMsgId);
+    await ctx.telegram.sendMessage(
 
-      } catch (e) {}
+      order.userId,
 
-    }
+      'Đơn hàng chưa được chấp nhận. Vui lòng liên hệ admin để được hỗ trợ.'
 
-    if (adminMsgId) {
-
-      try {
-
-        await ctx.editMessageCaption(
-
-          ctx.callbackQuery.message.caption +
-
-            '\n\n❌ <b>ĐÃ TỪ CHỐI ĐƠN HÀNG NÀY!</b>',
-
-          { parse_mode: 'HTML' }
-
-        );
-
-      } catch (e) {}
-
-    }
+    );
 
     try {
 
-      await ctx.telegram.sendMessage(
+      await ctx.editMessageCaption(
 
-        order.userId,
+        (ctx.callbackQuery.message.caption || '') +
 
-        '❌ <b>Giao dịch của bạn không thành công hoặc chưa được xác nhận!</b>\nVui lòng kiểm tra lại số tiền hoặc nội dung chuyển khoản, hoặc liên hệ trực tiếp Admin để được hỗ trợ nhé.',
+        '\n\n❌ ĐÃ TỪ CHỐI',
 
         { parse_mode: 'HTML' }
 
       );
 
-    } catch (e) {}
+    } catch (err) {}
 
-    pendingOrders.delete(orderId);
+    pendingOrders.delete(order.orderId);
+
+  } catch (err) {
+
+    console.error('Lỗi từ chối đơn:', err.message);
+
+    await ctx.reply('Không xử lý được đơn hàng.');
 
   }
 
 });
 
-// Hướng dẫn cho khách
-
-bot.action('show_guide_customer', async (ctx) => {
+bot.action('show_guide_customer', async ctx => {
 
   await ctx.answerCbQuery();
 
@@ -1060,11 +946,19 @@ bot.action('show_guide_customer', async (ctx) => {
 
 });
 
-// Khởi chạy bot
+// Báo lỗi handler để tránh lỗi callback bị bỏ qua
 
-bot.launch();
+bot.catch((err, ctx) => {
 
-console.log('Bot Locket Gold Pro Chạy Mượt Mà!');
+  console.error('Lỗi bot:', err.message, 'Update:', ctx.updateType);
+
+});
+
+bot.launch()
+
+  .then(() => console.log('Bot đã khởi động thành công.'))
+
+  .catch(err => console.error('Không khởi động được bot:', err.message));
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 
